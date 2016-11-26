@@ -41,6 +41,7 @@ Makefile.in
 *.target.mk
 
 /out/
+/build/gyp
 
 /test/.libs/
 /test/run-tests
