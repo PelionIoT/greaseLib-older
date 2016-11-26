@@ -11,9 +11,23 @@ done
 DEPS_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 LOG=${DEPS_DIR}/../install_deps.log
 GPERF_DIR=${DEPS_DIR}/gperftools-2.4
+LIBUV_DIR=${DEPS_DIR}/libuv-v1.10.1
 
 rm -f $LOG
 mkdir -p ${DEPS_DIR}/build
+
+
+platform='unknown'
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+   platform='linux'
+elif [[ "$unamestr" == 'FreeBSD' ]]; then
+   platform='freebsd'
+elif [[ "$unamestr" == 'Darwin' ]]; then
+   platform='darwin'
+fi
+
+
 
 pushd $GPERF_DIR
 touch $LOG
@@ -37,4 +51,17 @@ else
     exit 1
 fi
 rm -f Makefile.in
+popd
+
+echo "build libuv...."
+
+pushd $LIBUV_DIR
+if [[ "$platform" == 'darwin' ]]
+	./gyp_uv.py -f xcode
+	xcodebuild -ARCHS="x86_64" -project uv.xcodeproj -configuration Release -target All
+else
+	./gyp_uv.py -f make
+	make -C out
+fi
+cp ./build/Release/libuv.a $DEPS_DIR/build/lib
 popd

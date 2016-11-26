@@ -3,11 +3,12 @@
  *
  *  Created on: Aug 27, 2014
  *      Author: ed
- * (c) 2014, Framez Inc
+ * (c) 2016, WigWag Inc
  */
 #ifndef GreaseLogger_H_
 #define GreaseLogger_H_
 
+#ifndef GREASE_LIB
 #include <v8.h>
 #include <node.h>
 #include <uv.h>
@@ -18,15 +19,20 @@
 using namespace node;
 using namespace v8;
 
+#endif
+
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
+// #include <linux/if.h>
+// #include <linux/if_tun.h>
+#ifndef __APPLE__
+#include <linux/fs.h>
+#endif
+
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <linux/fs.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -191,7 +197,11 @@ struct uint64_t_eqstrP {
 const int MAX_IF_NAME_LEN = 16;
 
 
-class GreaseLogger : public Nan::ObjectWrap {
+class GreaseLogger 
+#ifndef GREASE_LIB
+	: public Nan::ObjectWrap 
+#endif
+{
 public:
 	typedef void (*actionCB)(GreaseLogger *, _errcmn::err_ev &err, void *data);
 
@@ -628,7 +638,7 @@ protected:
 	_errcmn::err_ev err;
 
 	// Definitions:
-	// Target - a final place a log entry goes: TTY, file, etc.
+	// Target - a final place a log entry goes: TTY, file, etc.x
 	// Filter - a condition, which if matching, will cause a log to go to a target
 	// FilterHash - a number used to point to one or more filters
 	// Log entry - the log entry (1) - synonymous with a single call to log() or logSync()
@@ -2967,7 +2977,7 @@ public:
 	static void Init(v8::Local<v8::Object> exports);
 
     static NAN_METHOD(New);
-    static NAN_METHOD(NewInstance);
+    static NAN_METHOD(NewIwnstance);
 
     static NAN_METHOD(SetGlobalOpts);
 

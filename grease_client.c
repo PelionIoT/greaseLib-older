@@ -229,9 +229,15 @@ int _grease_logToRaw(logMeta *f, const char *s, RawLogLen len, char *tobuf, RawL
 #define _GNU_SOURCE
 #define __USE_GNU
 
+#ifdef __APPLE__
+#include <dlfcn.h>
+#include <mach-o/dyld.h>
+#else
 #include <elf.h>
 #include <dlfcn.h>
 #include <link.h>
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -319,7 +325,7 @@ int grease_logToSink(logMeta *f, const char *s, RawLogLen len) {
 }
 
 
-
+#ifndef __APPLE__
 
 static int
 grease_plhdr_callback(struct dl_phdr_info *info, size_t size, void *data)
@@ -360,6 +366,17 @@ int check_grease_symbols() {
 	dl_iterate_phdr(grease_plhdr_callback, NULL);
 	return found_module;
 }
+
+#else 
+
+int check_grease_symbols() {
+	found_module = 0;
+// FIXME - need OS X implementation here
+//	dl_iterate_phdr(grease_plhdr_callback, NULL);
+	return 0;
+}
+
+#endif
 
 int ping_sink() {
 	char temp_buf[GREASE_CLIENT_PING_SIZE];

@@ -8,12 +8,13 @@
 #ifndef ERROR_COMMON_H_
 #define ERROR_COMMON_H_
 
-#include "nan.h"
 #include <string.h>
 #include <stdlib.h>
 
+#ifndef GREASE_LIB
+#include "nan.h"
 #include <v8.h>
-
+#endif
 
 #include <errno.h>
 #if !defined(_MSC_VER)
@@ -35,7 +36,7 @@
 //                v8::Number::New(constant),
 //                static_cast<v8::PropertyAttribute>(
 //                    v8::ReadOnly|v8::DontDelete))
-
+#ifndef GREASE_LIB
 #define _ERRCMN_DEFINE_CONSTANT(target, constant)                         \
   Nan::ForceSet(target,Nan::New(#constant).ToLocalChecked(),               \
                 Nan::New((uint32_t)constant),                                \
@@ -63,6 +64,7 @@
                 static_cast<v8::PropertyAttribute>(                       \
                     v8::ReadOnly|v8::DontDelete));                        \
 
+#endif
 // custom error codes should be above this value
 #define _ERRCMN_CUSTOM_ERROR_CUTOFF  4000
 
@@ -72,12 +74,16 @@
 
 namespace _errcmn {
 
-	void DefineConstants(v8::Handle<v8::Object> target);
-
 	char *get_error_str(int _errno);
 	void free_error_str(char *b);
+
+#ifndef GREASE_LIB
+	void DefineConstants(v8::Handle<v8::Object> target);
 	v8::Local<v8::Value> errno_to_JS(int _errno, const char *prefix = NULL);
 	v8::Local<v8::Value> errno_to_JSError(int _errno, const char *prefix = NULL);
+	v8::Handle<v8::Value> err_ev_to_JS(err_ev &e, const char *prefix);
+#endif
+
 	struct err_ev {
 		char *errstr;
 		int _errno;
@@ -103,8 +109,10 @@ namespace _errcmn {
 		}
 		bool hasErr() { return (_errno != 0); }
 	};
-	v8::Handle<v8::Value> err_ev_to_JS(err_ev &e, const char *prefix);
 }
+
+
+
 
 #ifndef NO_ERROR_CMN_OUTPUT  // if define this, you must define these below yourself
 

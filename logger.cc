@@ -24,8 +24,10 @@
 
 using namespace Grease;
 
+#ifndef GREASE_LIB
+
 Nan::Persistent<v8::Function> GreaseLogger::constructor;
-	
+
 NAN_METHOD(GreaseLogger::SetGlobalOpts) {
 
 	GreaseLogger *l = GreaseLogger::setupClass();
@@ -64,6 +66,7 @@ NAN_METHOD(GreaseLogger::SetGlobalOpts) {
 	}
 }
 
+#endif
 
 bool GreaseLogger::sift(logMeta &f) { // returns true, then the logger should log it
 	bool ret = false;
@@ -641,6 +644,8 @@ void GreaseLogger::start(actionCB cb, target_start_info *data) {
 	uv_thread_create(&logThreadId,GreaseLogger::mainThread,this);
 }
 
+#ifndef GREASE_LIB
+
 NAN_METHOD(GreaseLogger::Start) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
@@ -651,6 +656,7 @@ NAN_METHOD(GreaseLogger::Start) {
 	l->start(start_logger_cb, startinfo);
 }
 
+#endif
 
 void GreaseLogger::start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d) {
 	GreaseLogger::target_start_info *info = (GreaseLogger::target_start_info *) d;
@@ -749,6 +755,8 @@ void GreaseLogger::callTargetCallback(uv_async_t *h) {
 	uv_unref((uv_handle_t *)&l->asyncTargetCallback);  // don't hold up event loop for this call back queue
 }
 
+#ifndef GREASE_LIB
+
 NAN_METHOD(GreaseLogger::createPTS) {
 
 	GreaseLogger *l = GreaseLogger::setupClass();
@@ -798,7 +806,11 @@ NAN_METHOD(GreaseLogger::createPTS) {
 
 }
 
+#endif
+
 const char GreaseLogger::empty_label[] = "--";
+
+#ifndef GREASE_LIB
 
 /**
  * addTagLabel(id,label)
@@ -819,6 +831,7 @@ NAN_METHOD(GreaseLogger::AddTagLabel) {
 	}
 
 };
+
 
 /**
  * addOriginLabel(id,label)
@@ -1624,6 +1637,7 @@ NAN_METHOD(GreaseLogger::Flush) {
 
 }
 
+#endif
 
 int GreaseLogger::_log( const logMeta &meta, const char *s, int len) { // internal log cmd
 //	HEAVY_DBG_OUT("out len: %d\n",len);
@@ -1709,6 +1723,7 @@ int GreaseLogger::_logSync( const logMeta &meta, const char *s, int len) { // in
 	return GREASE_OK;
 }
 
+#ifndef GREASE_LIB
 
 void GreaseLogger::Init(v8::Local<v8::Object> exports) {
 	Nan::HandleScope scope;
@@ -1815,6 +1830,8 @@ NAN_METHOD(GreaseLogger::New) {
 	  }
 
 }
+
+#endif
 
 //Handle<Value> GreaseLogger::NewInstance() {
 //	if(info.Length() > 0) {
