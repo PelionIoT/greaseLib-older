@@ -44,7 +44,7 @@ rm -f $GPERF_DIR/Makefile
 if [ -e "$DEPS_DIR/build/include/google/tcmalloc.h" ]; then
     echo "Successful build of depenencies" >> $LOG
     echo "ok"
-    exit 0
+#    exit 0
 else
     echo "Missing tcmalloc.h!!" >> $LOG
     echo "notok"
@@ -56,12 +56,14 @@ popd
 echo "build libuv...."
 
 pushd $LIBUV_DIR
-if [[ "$platform" == 'darwin' ]]
+if [[ "$platform" == 'darwin' ]]; then
 	./gyp_uv.py -f xcode
 	xcodebuild -ARCHS="x86_64" -project uv.xcodeproj -configuration Release -target All
+	cp ./build/Release/libuv.a $DEPS_DIR/build/lib
 else
 	./gyp_uv.py -f make
 	make -C out
+	cp ./out/Debug/libuv.a $DEPS_DIR/build/lib
 fi
-cp ./build/Release/libuv.a $DEPS_DIR/build/lib
+
 popd
