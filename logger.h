@@ -19,6 +19,9 @@
 using namespace node;
 using namespace v8;
 
+#else
+#include "grease_lib.h"
+#include <assert.h>
 #endif
 
 #include <sys/types.h>
@@ -27,6 +30,9 @@ using namespace v8;
 // #include <linux/if_tun.h>
 #ifndef __APPLE__
 #include <linux/fs.h>
+#else
+#include <sys/types.h>  // for OS X writev()
+#include <sys/uio.h>
 #endif
 
 #include <unistd.h>
@@ -492,6 +498,7 @@ public:
 		}
 	};
 
+#ifndef GREASE_LIB
 	class target_start_info final {
 	public:
 		bool needsAsyncQueue; // if the callback must be called in the v8 thread
@@ -510,6 +517,26 @@ public:
 			return *this;
 		}
 	};
+#else
+	class target_start_info final {
+	public:
+		bool needsAsyncQueue; // if the callback must be called in the v8 thread
+		_errcmn::err_ev err;      // used if above is true
+		actionCB cb;
+
+//		Nan::Callback *targetStartCB;
+		TargetId targId;
+		target_start_info() : needsAsyncQueue(false), err(), cb(NULL), targId(0) {} // targetStartCB(NULL), 
+		target_start_info& operator=(target_start_info&& o) {
+			if(o.err.hasErr())
+				err = std::move(o.err);
+			cb = o.cb; o.cb = NULL;
+//			targetStartCB = o.targetStartCB; o.targetStartCB = NULL;
+			targId = o.targId;
+			return *this;
+		}
+	};
+#endif
 
 	struct Opts_t {
 		uv_mutex_t mutex;
@@ -577,6 +604,7 @@ protected:
 		uv_mutex_unlock(&mutexRefLogger);
 	}
 
+#ifndef GREASE_LIB
 	void refFromV8() {
 		uv_mutex_lock(&mutexRefLogger);
 		if(needV8 == 0) {
@@ -612,6 +640,8 @@ protected:
 
  		uv_mutex_unlock(&mutexRefLogger);
 	}
+
+#endif
 
 #if UV_VERSION_MAJOR > 0
 	static void refCb_Logger(uv_async_t* handle) {
@@ -731,10 +761,16 @@ protected:
 
 	class Sink {
 	protected:
+#ifndef GREASE_LIB
 		Persistent<Function> onNewConnCB;
+#endif		
 	public:
 
-		Sink() : onNewConnCB() {}
+		Sink() 
+#ifndef GREASE_LIB
+		: onNewConnCB() 
+#endif
+		{}
 
 		static void parseAndLog() {
 
@@ -1132,10 +1168,11 @@ protected:
 				path(NULL), loop(l), owner(o),  id(_id),
 				stop_thread(false),
 				socket_fd(0),
-				wakeup_pipe({-1,-1}),
+				wakeup_pipe(), // {-1,-1}
 				ready(false) {
 //			uv_pipe_init(l,&pipe,0);
 //			pipe.data = this;
+			wakeup_pipe[0] = -1; wakeup_pipe[1] = -1;
 			if(_path && strlen(_path) > 0) {
 				path = local_strdup_safe(_path);
 			}
@@ -1586,7 +1623,10 @@ protected:
 //		uv_work_t work;
 		nodeCommand cmd;
 		int _errno; // the errno that happened on read if an error occurred.
+
+#ifndef GREASE_LIB
 		Nan::Callback *callback;
+#endif
 //		v8::Persistent<Function> onFailureCB;
 //		v8::Persistent<Object> buffer; // Buffer object passed in
 //		char *_backing; // backing of the passed in Buffer
@@ -1594,25 +1634,39 @@ protected:
 		GreaseLogger *self;
 		// need Buffer
 		nodeCmdReq(nodeCommand c, GreaseLogger *i) : cmd(c), _errno(0),
+#ifndef GREASE_LIB
 				callback(),
+#endif
 //				onSuccessCB(), onFailureCB(),
 //				buffer(), _backing(NULL), len(0),
 				self(i) {
 //			work.data = this;
 		}
 		nodeCmdReq(nodeCmdReq &) = delete;
-		nodeCmdReq() : cmd(nodeCommand::NOOP), _errno(0), callback(), self(NULL) {}
-		nodeCmdReq(nodeCmdReq &&o) :cmd(o.cmd), _errno(o._errno), callback(NULL), self(o.self) {
+		nodeCmdReq() : cmd(nodeCommand::NOOP), _errno(0), 
+#ifndef GREASE_LIB
+		callback(), 
+#endif		
+		self(NULL) {}
+		nodeCmdReq(nodeCmdReq &&o) :cmd(o.cmd), _errno(o._errno), 
+#ifndef GREASE_LIB
+		callback(NULL), 
+#endif		
+		self(o.self) {
+#ifndef GREASE_LIB
 			if(o.callback) {
 				callback = o.callback; o.callback = NULL;
 			}
+#endif			
 		};
 		nodeCmdReq& operator=(nodeCmdReq&& o) {
 			cmd = o.cmd;
 			_errno = o._errno;
+#ifndef GREASE_LIB
 			if(o.callback) {
 				callback = o.callback; o.callback = NULL;
 			}
+#endif			
 			return *this;
 		}
 	};
@@ -1628,7 +1682,9 @@ protected:
 		target_start_info *readyData;
 		logBuf *_buffers[NUM_BANKS];
 		bool logCallbackSet; // if true, logCallback (below) is set (we prefer to not touch any v8 stuff, when outside the v8 thread)
+#ifndef GREASE_LIB
 		Nan::Callback *logCallback;
+#endif
 		delim_data delim;
 
 
@@ -1871,26 +1927,7 @@ protected:
 		}
 
 
-//		void returnOverflowBuffer(logBuf *b, bool sync = false, bool nocallback = false) {
-//			if(!nocallback && logCallbackSet && b->handle.len > 0) {
-//				writeCBData cbdat(this,b);
-//				if(!owner->v8LogCallbacks.addMvIfRoom(cbdat)) {
-//					if(owner->Opts.show_errors)
-//						ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
-//				}
-//				if(!sync)
-//					uv_async_send(&owner->asyncV8LogCallback);
-//				else
-//					GreaseLogger::_doV8Callback(cbdat);
-//			} else {
-//				b->clear();
-//				availBuffers.add(b);
-//			}
-//		}
-
-
-
-
+#ifndef GREASE_LIB
 		void setCallback(Local<Function> &func) {
 			uv_mutex_lock(&writeMutex);
 			if(!func.IsEmpty()) {
@@ -1899,6 +1936,7 @@ protected:
 			}
 			uv_mutex_unlock(&writeMutex);
 		}
+#endif
 
 		bool rotate() {
 			bool ret = false;
@@ -2385,7 +2423,7 @@ protected:
 		}
 
 		uv_write_t outReq;  // since this function is no re-entrant (below) we can do this
-		void flush(logBuf *b, bool nocallbacks = false) { // this will always be called by the logger thread (via uv_async_send)
+		void flush(logBuf *b, bool nocallbacks = false) override { // this will always be called by the logger thread (via uv_async_send)
 			uv_fs_t *req = new uv_fs_t;
 			writeCBData *d = new writeCBData;
 			d->t = this;
@@ -2428,7 +2466,7 @@ protected:
 #endif
 			delete req;
 		}
-		void sync() {
+		void sync() override {
 //			sync_n++;
 //			if(sync_n >= 4) sync_n = 0;
 			uv_fs_t *req = new uv_fs_t;
@@ -2783,10 +2821,10 @@ protected:
 
 		// 			d->t->returnBuffer(d->b);
 
-		void flush(logBuf *b,bool nocallbacks = false) {
+		void flush(logBuf *b,bool nocallbacks = false) override {
 			returnBuffer(b,false,nocallbacks);
 		}; // flush buffer 'n'. This is ansynchronous
-		void flushSync(logBuf *b, bool nocallbacks = false) {
+		void flushSync(logBuf *b, bool nocallbacks = false) override {
 			returnBuffer(b,true,nocallbacks);
 		}; // flush buffer 'n'. This is ansynchronous
 		void writeAsyncOverflow(overflowWriteOut *b,bool nocallbacks) override {
@@ -2974,6 +3012,7 @@ public:
 	static void flushAll(bool nocallbacks = false);
 	static void flushAllSync(bool rotate = true,bool nocallbacks = false);
 
+#ifndef GREASE_LIB
 	static void Init(v8::Local<v8::Object> exports);
 
     static NAN_METHOD(New);
@@ -3010,9 +3049,8 @@ public:
     static NAN_METHOD(LogSync);
     static NAN_METHOD(Flush);
 
-
-
     static Nan::Persistent<v8::Function> constructor;
+#endif
 //    static Persistent<ObjectTemplate> prototype;
 
     // solid reference to TUN / TAP creation is: http://backreference.org/2010/03/26/tuntap-interface-tutorial/

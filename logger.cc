@@ -656,6 +656,19 @@ NAN_METHOD(GreaseLogger::Start) {
 	l->start(start_logger_cb, startinfo);
 }
 
+#else
+
+LIB_METHOD(GreaseLogger::Start) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
+
+	// if(info.Length() > 0 && info[0]->IsFunction()) {
+	// 	startinfo->targetStartCB = new Nan::Callback(Local<Function>::Cast(info[0]));
+	// }
+	if(libCB) startinfo->targetStartCB = libCB;
+	l->start(start_logger_cb, startinfo);	
+}
+
 #endif
 
 void GreaseLogger::start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d) {
