@@ -57,3 +57,6 @@ deps/gperftools-2.4/tcmalloc_minimal_unittest
 deps/gperftools-2.4/tcmalloc_unittest
 deps/gperftools-2.4/tcmalloc_unittest.sh
 deps/gperftools-2.4/thread_dealloc_unittest
+*.o
+*.a
+/standalone_test_logsink

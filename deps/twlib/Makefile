@@ -64,15 +64,19 @@ LD_TEST_FLAGS= -lgtest
 
 HRDS= include/TW/tw_bufblk.h  include/TW/tw_globals.h  include/TW/tw_object.h include/TW/tw_stack.h\
 include/TW/tw_dlist.h   include/TW/tw_llist.h    include/TW/tw_socktask.h    include/TW/tw_syscalls.h\
-include/TW/tw_macros.h include/TW/tw_globals.h include/TW/tw_alloc.h include/TW/tw_sparsehash.h include/TW/tw_densehash.h\
+include/TW/tw_macros.h include/TW/tw_globals.h include/TW/tw_alloc.h \
 include/TW/tw_stringmap.h
+
+#include/TW/tw_sparsehash.h include/TW/tw_densehash.h\
 
 SRCS_CPP= tw_object.cpp tw_globals.cpp tw_socktask.cpp tw_globals.cpp tw_log.cpp tw_alloc.cpp tw_utils.cpp tw_task.cpp tw_stringmap.cpp
 
 SRCS_C= $(SYSCALLS)
 OBJS= $(SRCS_CPP:%.cpp=$(OUTPUT_DIR)/%.o) $(SRCS_C:%.c=$(OUTPUT_DIR)/%.o)
 OBJS_NAMES= $(SRCS_CPP:%.cpp=$%.o) $(SRCS_C:%.c=%.o)
-TPLS= include/TW/tw_fifo.h include/TW/tw_task.h include/TW/tw_alloc.h include/TW/tw_bufblk.h include/TW/tw_sparsehash.h include/TW/tw_densehash.h
+TPLS= include/TW/tw_fifo.h include/TW/tw_task.h include/TW/tw_alloc.h include/TW/tw_bufblk.h 
+
+#include/TW/tw_sparsehash.h include/TW/tw_densehash.h
 
 ##tw_sparsehash.h
 
@@ -197,7 +201,7 @@ install: tw_lib $(EXTRA_TARGET)
 	ln -sf $(INSTALLPREFIX)/lib/$(TWSONAME) $(INSTALLPREFIX)/lib/$(TWSOVERSION) && \
 	ln -sf $(INSTALLPREFIX)/lib/$(TWSONAME) $(INSTALLPREFIX)/lib/$(TWSOLIBNAME)
 
-	
+
 
 
 

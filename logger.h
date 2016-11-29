@@ -71,7 +71,7 @@ extern "C" char *local_strdup_safe(const char *s);
 
 namespace Grease {
 
-
+//typedef void (*__GreaseLibCallback) (_errcmn::err_ev *err, void *); // used for internal callbacks in the library, when not using V8
 
 using namespace TWlib;
 
@@ -524,14 +524,14 @@ public:
 		_errcmn::err_ev err;      // used if above is true
 		actionCB cb;
 
-//		Nan::Callback *targetStartCB;
+		GreaseLibCallback targetStartCB;
 		TargetId targId;
-		target_start_info() : needsAsyncQueue(false), err(), cb(NULL), targId(0) {} // targetStartCB(NULL), 
+		target_start_info() : needsAsyncQueue(false), err(), cb(NULL), targetStartCB(NULL), targId(0) {} // targetStartCB(NULL),
 		target_start_info& operator=(target_start_info&& o) {
 			if(o.err.hasErr())
 				err = std::move(o.err);
 			cb = o.cb; o.cb = NULL;
-//			targetStartCB = o.targetStartCB; o.targetStartCB = NULL;
+			targetStartCB = o.targetStartCB; o.targetStartCB = NULL;
 			targId = o.targId;
 			return *this;
 		}
@@ -641,6 +641,17 @@ protected:
  		uv_mutex_unlock(&mutexRefLogger);
 	}
 
+#else
+	void refFromV8() {
+	}
+
+	// to be called from non-V8 thread
+	void unrefFromV8() {
+	}
+
+	// to be called from V8 thread
+	void unrefFromV8_inV8() {
+	}
 #endif
 
 #if UV_VERSION_MAJOR > 0
@@ -1684,6 +1695,8 @@ protected:
 		bool logCallbackSet; // if true, logCallback (below) is set (we prefer to not touch any v8 stuff, when outside the v8 thread)
 #ifndef GREASE_LIB
 		Nan::Callback *logCallback;
+#else
+		GreaseLibCallback logCallback;
 #endif
 		delim_data delim;
 
@@ -1879,7 +1892,7 @@ protected:
 				ERROR_OUT("ERROR ERROR availBuffers was full (makes no sense) \n");
 			}
 		}
-
+#ifndef GREASE_LIB
 		void returnBuffer(logBuf *b, bool sync = false, bool nocallback = false) {
 			bool isempty = b->isEmpty();
 			if(!isempty)
@@ -1889,7 +1902,7 @@ protected:
 				if(sync) {
 					GreaseLogger::_doV8Callback(cbdat);
 				} else {
-					if(!owner->v8LogCallbacks.addMvIfRoom(cbdat)) {
+					if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
 						if(owner->Opts.show_errors)
 							ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 						b->clear();
@@ -1911,7 +1924,7 @@ protected:
 				writeCBData cbdat;
 				cbdat.t = this;
 				cbdat.overflow = b;
-				if(!owner->v8LogCallbacks.addMvIfRoom(cbdat)) {
+				if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
 					if(owner->Opts.show_errors)
 						ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 				}
@@ -1925,7 +1938,53 @@ protected:
 				if(b) delete b;
 			}
 		}
+#else
+		void returnBuffer(logBuf *b, bool sync = false, bool nocallback = false) {
+			bool isempty = b->isEmpty();
+			if(!isempty)
+				owner->unrefGreaseInGrease();
+			if(!nocallback && logCallbackSet && !isempty) {
+				writeCBData cbdat(this,b);
+				if(sync) {
+					GreaseLogger::_doLibCallback(cbdat);
+				} else {
+					if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
+						if(owner->Opts.show_errors)
+							ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
+						b->clear();
+						availBuffers.add(b);
+					} else {
+						owner->refFromV8();
+						uv_async_send(&owner->asyncV8LogCallback);
+					}
+				}
+			} else {
+				b->clear();
+				availBuffers.add(b);
+			}
+		}
 
+		void returnBuffer(overflowWriteOut *b, bool sync = false, bool nocallback = false) {
+			owner->unrefGreaseInGrease();
+			if(!nocallback && logCallbackSet && b) {
+				writeCBData cbdat;
+				cbdat.t = this;
+				cbdat.overflow = b;
+				if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
+					if(owner->Opts.show_errors)
+						ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
+				}
+				if(!sync) {
+					owner->refFromV8();
+					uv_async_send(&owner->asyncV8LogCallback);
+				}
+				else
+					GreaseLogger::_doLibCallback(cbdat);
+			} else {
+				if(b) delete b;
+			}
+		}
+#endif
 
 #ifndef GREASE_LIB
 		void setCallback(Local<Function> &func) {
@@ -2851,7 +2910,7 @@ protected:
 				cbdat.t = this;
 				cbdat.overflow = b;
 
-				if(!owner->v8LogCallbacks.addMvIfRoom(cbdat)) {
+				if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
 					if(owner->Opts.show_errors)
 						ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 				}
@@ -2868,8 +2927,7 @@ protected:
 
 	TWlib::tw_safeCircular<GreaseLogger::internalCmdReq, LoggerAlloc > internalCmdQueue;
 	TWlib::tw_safeCircular<GreaseLogger::nodeCmdReq, LoggerAlloc > nodeCmdQueue;
-	TWlib::tw_safeCircular<GreaseLogger::logTarget::writeCBData, LoggerAlloc > v8LogCallbacks;
-
+	TWlib::tw_safeCircular<GreaseLogger::logTarget::writeCBData, LoggerAlloc > callerLogCallbacks; // formerly v8LogCallbacks
 
 	uv_mutex_t modifyFilters; // if the table is being modified, lock first
 	typedef TWlib::TW_KHash_32<uint64_t, FilterList *, TWlib::TW_Mutex, uint64_t_eqstrP, TWlib::Allocator<LoggerAlloc> > FilterHashTable;
@@ -3005,6 +3063,9 @@ protected:
 
 	void start(actionCB cb, target_start_info *data);
 	int logFromRaw(char *base, int len);
+
+
+
 public:
 	int log(const logMeta &f, const char *s, int len); // does the work of logging (for users in C++)
 	int logP(logMeta *f, const char *s, int len); // does the work of logging (for users in C++)
@@ -3062,10 +3123,21 @@ public:
 
 protected:
 
+	// somewhat analagous to the above NAN_METHOD functions for V8
+#ifdef GREASE_LIB
+	LIB_METHOD_FRIEND(setGlobalOpts, GreaseLibOpts *opts);
+	LIB_METHOD_FRIEND(Start);
+#endif
+
+
 	// calls callbacks when target starts (if target was started in non-v8 thread
 	static void callTargetCallback(uv_async_t *h);
 	static void callV8LogCallbacks(uv_async_t *h);
+#ifndef GREASE_LIB
 	static void _doV8Callback(GreaseLogger::logTarget::writeCBData &data); // <--- only call this one from v8 thread!
+#else
+	static void _doLibCallback(GreaseLogger::logTarget::writeCBData &data); // <--- only call this one from v8 thread!
+#endif
 	static void start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
 	static void start_logger_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
     GreaseLogger(int buffer_size = DEFAULT_BUFFER_SIZE, int chunk_size = LOGGER_DEFAULT_CHUNK_SIZE) :
@@ -3079,7 +3151,7 @@ protected:
     	err(),
     	internalCmdQueue( INTERNAL_QUEUE_SIZE, true ),
     	nodeCmdQueue( COMMAND_QUEUE_NODE_SIZE, true ),
-    	v8LogCallbacks( V8_LOG_CALLBACK_QUEUE_SIZE, true ),
+    	callerLogCallbacks( V8_LOG_CALLBACK_QUEUE_SIZE, true ),
 //    	levelFilterOutMask(0), // moved to Opts ... tagFilter(), originFilter(),
 //    	defaultFilterOut(false),
     	filterHashTable(),

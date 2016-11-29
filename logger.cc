@@ -626,7 +626,11 @@ void GreaseLogger::start_logger_cb(GreaseLogger *l, _errcmn::err_ev &err, void *
 			if(err.hasErr()) {
 				ERROR_OUT("Error on starting default target. greaseLog starting anyway...\n");
 			}
+#ifndef GREASE_LIB
 			info->targetStartCB->Call(Nan::GetCurrentContext()->Global(),0,NULL);
+#else
+			info->targetStartCB(0,NULL);
+#endif
 //				else {
 //					argv[0] = _errcmn::err_ev_to_JS(err, "Default target startup error: ")->ToObject();
 //					info->targetStartCB->Call(Context::GetCurrent()->Global(),1,argv);
@@ -656,18 +660,6 @@ NAN_METHOD(GreaseLogger::Start) {
 	l->start(start_logger_cb, startinfo);
 }
 
-#else
-
-LIB_METHOD(GreaseLogger::Start) {
-	GreaseLogger *l = GreaseLogger::setupClass();
-	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
-
-	// if(info.Length() > 0 && info[0]->IsFunction()) {
-	// 	startinfo->targetStartCB = new Nan::Callback(Local<Function>::Cast(info[0]));
-	// }
-	if(libCB) startinfo->targetStartCB = libCB;
-	l->start(start_logger_cb, startinfo);	
-}
 
 #endif
 
@@ -681,6 +673,7 @@ void GreaseLogger::start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *
 		uv_async_send(&l->asyncTargetCallback);
 	} else {
 		if(info->targetStartCB) {
+#ifndef GREASE_LIB
 			const unsigned argc = 2;
 			Local<Value> argv[argc];
 			if(!err.hasErr()) {
@@ -691,16 +684,26 @@ void GreaseLogger::start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *
 				argv[1] = _errcmn::err_ev_to_JS(err, "Target startup error: ")->ToObject();
 				info->targetStartCB->Call(Nan::GetCurrentContext()->Global(),2,argv);
 			}
+#else
+			if(!err.hasErr()) {
+				uint32_t val = info->targId;
+				info->targetStartCB(NULL,&val);
+			} else {
+				GreaseLibError *liberror = err.toGreaseLibError(NULL);
+				info->targetStartCB(liberror,0);
+			}
+#endif
 		}
 		delete info;
 	}
 }
 
+#ifndef GREASE_LIB
 
 void GreaseLogger::callV8LogCallbacks(uv_async_t *h) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 	GreaseLogger::logTarget::writeCBData data;
-	while(l->v8LogCallbacks.removeMv(data)) {
+	while(l->callerLogCallbacks.removeMv(data)) {
 		if(data.t->logCallback) {
 			_doV8Callback(data);
 		}
@@ -767,6 +770,83 @@ void GreaseLogger::callTargetCallback(uv_async_t *h) {
 	}
 	uv_unref((uv_handle_t *)&l->asyncTargetCallback);  // don't hold up event loop for this call back queue
 }
+#else
+
+void GreaseLogger::callV8LogCallbacks(uv_async_t *h) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+	GreaseLogger::logTarget::writeCBData data;
+	while(l->callerLogCallbacks.removeMv(data)) {
+		if(data.t->logCallback) {
+			_doLibCallback(data);
+		}
+//		l->unrefFromV8_inV8();
+	}
+}
+
+
+void GreaseLogger::callTargetCallback(uv_async_t *h) {
+	target_start_info *info = NULL;
+	GreaseLogger *l = GreaseLogger::setupClass();
+
+	while(l->targetCallbackQueue.remove(info)) {
+		HEAVY_DBG_OUT("********* REMOVE targetCallbackQueue: %p\n", info);
+		const unsigned argc = 2;
+		if(info->targetStartCB) {
+			if(!info->err.hasErr()) {
+				uint32_t val = info->targId;
+				info->targetStartCB(NULL,&val);
+			} else {
+				GreaseLibError *liberror = info->err.toGreaseLibError(NULL);
+				info->targetStartCB(liberror,0);
+			}
+		}
+		delete info;
+	}
+	uv_unref((uv_handle_t *)&l->asyncTargetCallback);  // don't hold up event loop for this call back queue
+}
+
+void GreaseLogger::_doLibCallback(GreaseLogger::logTarget::writeCBData &data) {
+	if(data.b) {
+//		Nan::MaybeLocal<String> s = Nan::New( data.b->handle.base, (int) data.b->handle.len );
+//		Local<String> sconv;
+//		if(s.ToLocal(&sconv)) {
+//			argv[0] = sconv;
+//			argv[1] = Nan::New( data.t->myId );
+		GreaseLibBuf buf;
+		GreaseLib_init_GreaseLibBuf(&buf);
+		buf.data = data.b->handle.base;
+		buf.size = data.b->handle.len;
+		data.t->logCallback(NULL,&buf);
+//		data.t->logCallback->Call(1,argv);
+//		} else {
+//			ERROR_OUT("Memory: Could not convert for log target's callback (1)");
+//		}
+		data.t->finalizeV8Callback(data.b);
+	} else if(data.overflow) {
+		int l = data.overflow->totalSize();
+//		char *d = (char *) LMALLOC(l);
+		GreaseLibBuf *buf = GreaseLib_new_GreaseLibBuf((size_t) l);
+		if(buf) {
+			data.overflow->copyAllTo(buf->data);
+//			Local<String> sconv;
+//			Nan::MaybeLocal<String> s = Nan::New( d, l );
+//			if(s.ToLocal(&sconv)) {
+//				argv[0] = sconv;
+//				argv[1] = Nan::New( data.t->myId );
+			data.t->logCallback(NULL,buf);
+//			} else {
+//				ERROR_OUT("Memory: Could not convert for log target's callback (2)");
+//			}
+//			LFREE(d);
+		} else {
+			ERROR_OUT("Error on LMALLOC. alloc was %d bytes.\n",l);
+		}
+		data.freeOverflow();
+	}
+}
+#endif
+
+
 
 #ifndef GREASE_LIB
 

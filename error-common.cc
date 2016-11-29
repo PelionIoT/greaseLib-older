@@ -17,6 +17,8 @@
 
 extern "C" char *local_strdup_safe(const char *s);
 
+#ifndef GREASE_LIB
+
 namespace _errcmn {
 
 
@@ -888,6 +890,7 @@ _ERRCMN_DEFINE_CONSTANT_WREV(target, EMEDIUMTYPE);
 
 }
 
+#endif
 
 typedef struct {
 	const char *label;
@@ -918,7 +921,7 @@ custom_errno custom_errs[] = {
 
 	const int max_error_buf = 255;
 
-	char *get_error_str(int _errno) {
+	char *_errcmn::get_error_str(int _errno) {
 		char *ret = (char *) malloc(max_error_buf);
 		int r = ERR_STRERROR_R(_errno,ret,max_error_buf);
 		if ( r != 0 ) DBG_OUT("strerror_r bad return: %d\n",r);
@@ -926,11 +929,11 @@ custom_errno custom_errs[] = {
 	}
 
 
-	void free_error_str(char *b) {
+	void _errcmn::free_error_str(char *b) {
 		free(b);
 	}
 
-	void err_ev::setError(int e,const char *m)
+	void _errcmn::err_ev::setError(int e,const char *m)
 	{
 		_errno = e;
 		if(errstr) free(errstr);
@@ -948,6 +951,8 @@ custom_errno custom_errs[] = {
 			errstr = ::local_strdup_safe(m);
 	}
 
+
+#ifndef GREASE_LIB
 	v8::Local<v8::Value> errno_to_JS(int _errno, const char *prefix) {
 		v8::Local<v8::Object> retobj = Nan::New<v8::Object>();
 
@@ -1039,7 +1044,6 @@ custom_errno custom_errs[] = {
 		}
 		return scope.Escape(retobj);
 	}
+#endif
 
-
-}
 

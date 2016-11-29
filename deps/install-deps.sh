@@ -12,6 +12,7 @@ DEPS_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 LOG=${DEPS_DIR}/../install_deps.log
 GPERF_DIR=${DEPS_DIR}/gperftools-2.4
 LIBUV_DIR=${DEPS_DIR}/libuv-v1.10.1
+LIBTW_DIR=${DEPS_DIR}/twlib
 
 rm -f $LOG
 mkdir -p ${DEPS_DIR}/build
@@ -38,6 +39,8 @@ echo "Echo building dependencies..." >> $LOG
 ./configure $CONFIG_OPTIONS --prefix=${DEPS_DIR}/build --enable-frame-pointers --with-pic 2>&1 >> $LOG || echo "Failed in configure for gperftools" >> $LOG
 make -j4 2>&1 >> $LOG || echo "Failed to compile gperftools" >> $LOG
 make install 2>&1 >> $LOG || echo "Failed to install gperftools to: $DEPS_DIR/build" >> $LOG
+# does not copy libstacktrace for some reason
+cp .libs/libstacktrace.* ../build/lib
 #echo "Error building gperftools-2.4" > $LOG
 #make clean
 rm -f $GPERF_DIR/Makefile
@@ -66,4 +69,14 @@ else
 	cp ./out/Debug/libuv.a $DEPS_DIR/build/lib
 fi
 
+popd
+
+pushd $LIBTW_DIR
+
+make tw_lib
+cp libTW.a ../build/lib
+cd ../build/include
+if [ ! -e TW ]; then
+    ln -s ../../twlib/include/TW .
+fi
 popd
