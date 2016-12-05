@@ -90,7 +90,7 @@ typedef struct {
 	int len_delim_output;
 	char *tty;
 	char *file;
-	GreaseLibCallback *targetCB; // used if this is target is a callback
+	GreaseLibCallback targetCB; // used if this is target is a callback
 	GreaseLibTargetFileOpts *fileOpts; // NULL if not needed
 	char *format_pre;
 	int format_pre_len;
@@ -171,6 +171,10 @@ GreaseLibSink *GreaseLib_new_GreaseLibSink();
 void GreaseLib_cleanup_GreaseLibSink(GreaseLibSink *sink);
 
 LIB_METHOD_SYNC(addSink,GreaseLibSink *sink);
+
+LIB_METHOD_SYNC(disableTarget, TargetId id);
+LIB_METHOD_SYNC(enableTarget, TargetId id);
+LIB_METHOD_SYNC(flush, TargetId id);
 
 #ifdef __cplusplus
 }

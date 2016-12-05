@@ -1995,6 +1995,15 @@ protected:
 			}
 			uv_mutex_unlock(&writeMutex);
 		}
+#else
+		void setCallback(GreaseLibCallback cb) {
+			uv_mutex_lock(&writeMutex);
+			if(cb) {
+				logCallbackSet = true;
+				logCallback = cb;
+			}
+			uv_mutex_unlock(&writeMutex);
+		}
 #endif
 
 		bool rotate() {
@@ -3139,6 +3148,9 @@ protected:
 	LIB_METHOD_SYNC_FRIEND(disableFilter,GreaseLibFilter *filter);
 	LIB_METHOD_SYNC_FRIEND(enableFilter,GreaseLibFilter *filter);
 	LIB_METHOD_SYNC_FRIEND(addSink,GreaseLibSink *sink);
+	LIB_METHOD_SYNC_FRIEND(disableTarget, TargetId id);
+	LIB_METHOD_SYNC_FRIEND(enableTarget, TargetId id);
+	LIB_METHOD_SYNC_FRIEND(flush, TargetId id);
 #endif
 
 

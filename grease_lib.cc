@@ -289,6 +289,10 @@ LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts) {
 		}
 	}
 
+	if(opts->targetCB) {
+		targ->setCallback(opts->targetCB);
+	}
+
 	if(opts->format_level) {
 		targ->setLevelFormat(opts->format_level,opts->format_level_len);
 	}
@@ -390,6 +394,10 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 		if(opts->delim) {
 			targ->delim.setDelim(opts->delim,opts->len_delim);
 		}
+	}
+
+	if(opts->targetCB) {
+		targ->setCallback(opts->targetCB);
 	}
 
 	if(opts->format_level) {
@@ -573,6 +581,132 @@ LIB_METHOD_SYNC(addSink,GreaseLibSink *sink) {
 	}
 	return GREASE_LIB_OK;
 }
+
+
+
+
+/**
+ * logstring and level manadatory
+ * all else optional
+ * log(message(number), level{number},tag{number},origin{number},extras{object})
+ *
+ * extras = {
+ *    .ignores = {number|array}
+ * }
+ * @method log
+ *
+ */
+//LIB_METHOD_SYNC(Log) {
+//	static extra_logMeta meta; // static - this call is single threaded from node.
+//	ZERO_LOGMETA(meta.m);
+//	uint32_t target = DEFAULT_TARGET;
+//	if(info.Length() > 1 && info[0]->IsString() && info[1]->IsInt32()){
+//		GreaseLogger *l = GreaseLogger::setupClass();
+//		v8::String::Utf8Value v8str(info[0]->ToString());
+//		meta.m.level = (uint32_t) info[1]->Int32Value(); // level
+//
+//		if(info.Length() > 2 && info[2]->IsInt32()) // tag
+//			meta.m.tag = (uint32_t) info[2]->Int32Value();
+//		else
+//			meta.m.tag = 0;
+//
+//		if(info.Length() > 3 && info[3]->IsInt32()) // origin
+//			meta.m.origin = (uint32_t) info[3]->Int32Value();
+//		else
+//			meta.m.origin = 0;
+//
+//		if(l->sift(meta.m)) {
+//			if(info.Length() > 4 && info[4]->IsObject()) {
+//				Local<Object> jsObj = info[4]->ToObject();
+//				Local<Value> val = jsObj->Get(Nan::New("ignores").ToLocalChecked());
+//				if(val->IsArray()) {
+//					Local<Array> array = v8::Local<v8::Array>::Cast(val);
+//					uint32_t i = 0;
+//					for (i=0 ; i < array->Length() ; ++i) {
+//					  const Local<Value> value = array->Get(i);
+//					  if(i >= MAX_IGNORE_LIST) {
+//						  break;
+//					  } else {
+//						  meta.ignore_list[i] = value->Uint32Value();
+//					  }
+//					}
+//					meta.ignore_list[i] = 0;
+//				} else if(val->IsUint32()) {
+//					meta.ignore_list[0] = val->Uint32Value();
+//					meta.ignore_list[1] = 0;
+//				}
+//				meta.m.extras = 1;
+//			}
+//			FilterList *list = NULL;
+//			l->_log(meta.m,v8str.operator *(),v8str.length());
+//		}
+//	}
+//}
+//
+//LIB_METHOD_SYNC(GreaseLogger::LogSync) {
+//	static logMeta meta; // static - this call is single threaded from node.
+//	uint32_t target = DEFAULT_TARGET;
+//	if(info.Length() > 1 && info[0]->IsString() && info[1]->IsInt32()){
+//		GreaseLogger *l = GreaseLogger::setupClass();
+//		v8::String::Utf8Value v8str(info[0]->ToString());
+//		meta.level = (uint32_t) info[1]->Int32Value();
+//
+//		if(info.Length() > 2 && info[2]->IsInt32()) // tag
+//			meta.tag = (uint32_t) info[2]->Int32Value();
+//		else
+//			meta.tag = 0;
+//
+//		if(info.Length() > 3 && info[3]->IsInt32()) // tag
+//			meta.origin = (uint32_t) info[3]->Int32Value();
+//		else
+//			meta.origin = 0;
+//
+//		FilterList *list = NULL;
+//		if(l->sift(meta)) {
+//			l->_logSync(meta,v8str.operator *(),v8str.length());
+//		}
+//	}
+//}
+
+
+LIB_METHOD_SYNC(disableTarget, TargetId id) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+
+	GreaseLogger::logTarget *t = NULL;
+	if(l->targets.find(id,t)) {
+		t->disableWrites(true);
+		return GREASE_LIB_OK;
+	} else {
+		return GREASE_LIB_NOT_FOUND;
+	}
+}
+
+LIB_METHOD_SYNC(enableTarget, TargetId id) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+	GreaseLogger::logTarget *t = NULL;
+	if(l->targets.find(id,t)) {
+		t->disableWrites(false);
+		return GREASE_LIB_OK;
+	} else {
+		return GREASE_LIB_NOT_FOUND;
+	}
+}
+
+
+LIB_METHOD_SYNC(flush, TargetId id) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+	GreaseLogger::logTarget *t = NULL;
+	if(l->targets.find(id,t)) {
+		t->flushAll();
+		return GREASE_LIB_OK;
+	} else {
+		return GREASE_LIB_NOT_FOUND;
+	}
+}
+
+
+
+
 
 
 /**
