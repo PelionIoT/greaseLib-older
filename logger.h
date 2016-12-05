@@ -3127,6 +3127,18 @@ protected:
 #ifdef GREASE_LIB
 	LIB_METHOD_FRIEND(setGlobalOpts, GreaseLibOpts *opts);
 	LIB_METHOD_FRIEND(Start);
+	LIB_METHOD_FRIEND(Shutdown);
+	LIB_METHOD_SYNC_FRIEND(addOriginLabel, uint32_t val, char *utf8, int len);
+	LIB_METHOD_SYNC_FRIEND(addTagLabel, uint32_t val, char *utf8, int len);
+	LIB_METHOD_SYNC_FRIEND(addLevelLabel, uint32_t val, char *utf8, int len);
+	LIB_METHOD_SYNC_FRIEND(modifyDefaultTarget,GreaseLibTargetOpts *opts);
+	LIB_METHOD_FRIEND(addTarget,GreaseLibTargetOpts *opts);
+	LIB_METHOD_SYNC_FRIEND(maskOutByLevel, uint32_t val);
+	LIB_METHOD_SYNC_FRIEND(unmaskOutByLevel, uint32_t val);
+	LIB_METHOD_SYNC_FRIEND(addFilter,GreaseLibFilter *filter);
+	LIB_METHOD_SYNC_FRIEND(disableFilter,GreaseLibFilter *filter);
+	LIB_METHOD_SYNC_FRIEND(enableFilter,GreaseLibFilter *filter);
+	LIB_METHOD_SYNC_FRIEND(addSink,GreaseLibSink *sink);
 #endif
 
 
@@ -3140,7 +3152,7 @@ protected:
 #endif
 	static void start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
 	static void start_logger_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
-    GreaseLogger(int buffer_size = DEFAULT_BUFFER_SIZE, int chunk_size = LOGGER_DEFAULT_CHUNK_SIZE) :
+    GreaseLogger(int buffer_size = DEFAULT_BUFFER_SIZE, int chunk_size = LOGGER_DEFAULT_CHUNK_SIZE, uv_loop_t *userloop = NULL) :
     	nextFilterId(1), nextTargetId(1),
     	Opts(),
 //    	bufferSize(buffer_size), chunkSize(chunk_size),
@@ -3166,10 +3178,11 @@ protected:
     	    loggerLoop = uv_loop_new();    // we use our *own* event loop (not the node/io.js one)
     	    Opts.bufferSize = buffer_size;
     	    Opts.chunkSize = chunk_size;
-    	    uv_async_init(uv_default_loop(), &asyncTargetCallback, callTargetCallback);
-    	    uv_async_init(uv_default_loop(), &asyncV8LogCallback, callV8LogCallbacks);
-    	    uv_async_init(uv_default_loop(), &asyncRefLogger, refCb_Logger);
-    	    uv_async_init(uv_default_loop(), &asyncUnrefLogger, unrefCb_Logger);
+    	    if(!userloop) userloop = uv_default_loop();
+    	    uv_async_init(userloop, &asyncTargetCallback, callTargetCallback);
+    	    uv_async_init(userloop, &asyncV8LogCallback, callV8LogCallbacks);
+    	    uv_async_init(userloop, &asyncRefLogger, refCb_Logger);
+    	    uv_async_init(userloop, &asyncUnrefLogger, unrefCb_Logger);
     	    uv_unref((uv_handle_t *)&asyncV8LogCallback);
     	    uv_unref((uv_handle_t *)&asyncTargetCallback);
     	    uv_unref((uv_handle_t *)&asyncRefLogger);
@@ -3201,9 +3214,9 @@ protected:
     }
 
 public:
-	static GreaseLogger *setupClass(int buffer_size = DEFAULT_BUFFER_SIZE, int chunk_size = LOGGER_DEFAULT_CHUNK_SIZE) {
+	static GreaseLogger *setupClass(int buffer_size = DEFAULT_BUFFER_SIZE, int chunk_size = LOGGER_DEFAULT_CHUNK_SIZE, uv_loop_t *userloop = NULL) {
 		if(!LOGGER) {
-			LOGGER = new GreaseLogger(buffer_size, chunk_size);
+			LOGGER = new GreaseLogger(buffer_size, chunk_size, userloop);
 			atexit(shutdown);
 		}
 		return LOGGER;

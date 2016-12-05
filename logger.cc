@@ -71,7 +71,13 @@ NAN_METHOD(GreaseLogger::SetGlobalOpts) {
 bool GreaseLogger::sift(logMeta &f) { // returns true, then the logger should log it
 	bool ret = false;
 	static uint64_t zero = 0;
-	if(Opts.levelFilterOutMask & f.level)
+
+	uint32_t mask = 0;
+	uv_mutex_lock(&modifyFilters);
+	mask = Opts.levelFilterOutMask;
+	uv_mutex_unlock(&modifyFilters);
+
+	if(mask & f.level)
 		return false;
 
 	if(!META_HAS_CACHE(f)) {  // if the hashes aren't cached, then we have not done this...
@@ -123,7 +129,13 @@ bool GreaseLogger::sift(logMeta &f) { // returns true, then the logger should lo
 bool GreaseLogger::siftP(logMeta *f) { // returns true, then the logger should log it
 	bool ret = false;
 	static uint64_t zero = 0;
-	if(Opts.levelFilterOutMask & f->level)
+
+	uint32_t mask = 0;
+	uv_mutex_lock(&modifyFilters);
+	mask = Opts.levelFilterOutMask;
+	uv_mutex_unlock(&modifyFilters);
+
+	if(mask & f->level)
 		return false;
 
 	if(!META_HAS_CACHE((*f))) {  // if the hashes aren't cached, then we have not done this...
@@ -1119,7 +1131,7 @@ NAN_METHOD(GreaseLogger::ModifyDefaultTarget) {
  * Allows caller to disable logging on a tag / origin / level combination
  */
 NAN_METHOD(GreaseLogger::FilterOut) {
-
+	// FIXME - it's implemented in the C-version in grease_lib.cc
 }
 
 /**
@@ -1146,7 +1158,7 @@ NAN_METHOD(GreaseLogger::FilterIn) {
 			ok = true;
 		}
 
-
+		// FIXME ?? this does nothing!
 
 	}
 }
