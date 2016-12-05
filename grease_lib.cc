@@ -263,7 +263,6 @@ LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts) {
 	GreaseLogger::logTarget *targ = l->defaultTarget;
 
 	GreaseLogger::target_start_info *i = new GreaseLogger::target_start_info();
-//	if(opts->)
 
 	if(opts->tty) {
 
@@ -580,36 +579,40 @@ LIB_METHOD_SYNC(enableFilter,GreaseLibFilter *filter) {
 	}
 }
 
-GreaseLibSink *GreaseLib_new_GreaseLibSink() {
+GreaseLibSink *GreaseLib_new_GreaseLibSink(uint32_t sink_type, const char *path) {
 	GreaseLibSink *ret = (GreaseLibSink *) ::malloc(sizeof(GreaseLibSink));
 	::memset(ret,0,sizeof(GreaseLibSink));
+	ret->sink_type = sink_type;
+	::strncpy(ret->path,path,GREASE_PATH_MAX);
 	return ret;
 }
 void GreaseLib_cleanup_GreaseLibSink(GreaseLibSink *sink) {
-	if(sink) ::free(sink);
+	if(sink) {
+		::free(sink);
+	}
 }
 
 
 LIB_METHOD_SYNC(addSink,GreaseLibSink *sink) {
 	GreaseLogger *l = GreaseLogger::setupClass();
-	if(sink->pipe) {
+	if(sink->sink_type == GREASE_LIB_SINK_PIPE) {
 		uv_mutex_lock(&l->nextIdMutex);
 		sink->id = l->nextSinkId++;
 		uv_mutex_unlock(&l->nextIdMutex);
 
-		GreaseLogger::PipeSink *newsink = new GreaseLogger::PipeSink(l, sink->pipe, sink->id, l->loggerLoop);
+		GreaseLogger::PipeSink *newsink = new GreaseLogger::PipeSink(l, sink->path, sink->id, l->loggerLoop);
 		GreaseLogger::Sink *base = dynamic_cast<GreaseLogger::Sink *>(newsink);
 
 		newsink->bind();
 		newsink->start();
 
 		l->sinks.addReplace(sink->id,base);
-	} else if (sink->unixDgram) {
+	} else if (sink->sink_type == GREASE_LIB_SINK_UNIXDGRAM) {
 		uv_mutex_lock(&l->nextIdMutex);
 		sink->id = l->nextSinkId++;
 		uv_mutex_unlock(&l->nextIdMutex);
 
-		GreaseLogger::UnixDgramSink *newsink = new GreaseLogger::UnixDgramSink(l, sink->pipe, sink->id, l->loggerLoop);
+		GreaseLogger::UnixDgramSink *newsink = new GreaseLogger::UnixDgramSink(l, sink->path, sink->id, l->loggerLoop);
 		GreaseLogger::Sink *base = dynamic_cast<GreaseLogger::Sink *>(newsink);
 
 		newsink->bind();

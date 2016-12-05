@@ -16,6 +16,9 @@
 #include <gperftools/tcmalloc.h>
 #include <stdint.h>
 
+// typically defined in <linux/limits.h>
+#define GREASE_PATH_MAX        4096
+
 #define GREASE_LIB_OK 0
 #define GREASE_LIB_NOT_FOUND 0x01E00000
 
@@ -160,14 +163,16 @@ LIB_METHOD_SYNC(disableFilter,GreaseLibFilter *filter);
 LIB_METHOD_SYNC(enableFilter,GreaseLibFilter *filter);
 //LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts);
 
+#define GREASE_LIB_SINK_UNIXDGRAM 0x1
+#define GREASE_LIB_SINK_PIPE 0x2
 
 typedef struct {
-	char *pipe;
-	char *unixDgram;
+	char path[GREASE_PATH_MAX];
+	uint32_t sink_type;
 	SinkId id;
 } GreaseLibSink;
 
-GreaseLibSink *GreaseLib_new_GreaseLibSink();
+GreaseLibSink *GreaseLib_new_GreaseLibSink(uint32_t sink_type, const char *path);
 void GreaseLib_cleanup_GreaseLibSink(GreaseLibSink *sink);
 
 LIB_METHOD_SYNC(addSink,GreaseLibSink *sink);
