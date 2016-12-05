@@ -36,48 +36,88 @@ void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b) {
 	}
 }
 
-
+uv_thread_t libThread;
 uv_loop_t *libLoop = NULL;
+uv_timer_t libMainTimer;
+bool libStarted = false;
 
-static int N = 0;
+//void libTimerCB(uv_timer_t* handle) {
+//    // Compute extra-terrestrial life
+//    // fold proteins
+//    // computer another digit of PI
+//    // or similar
+//    printf("LibTimer\n");
+////    // just to avoid overwhelming your terminal emulator
+////    uv_idle_stop(handle);
+//}
+///**
+// * This is main thread for the library. It does not do the loggin processing, which is handled by
+// * the logger's threads. Since the greaseLogger depends on an lib_uv event loop, this starts that loop
+// */
+//void libMainThread(void *arg) {
+//	libLoop = (uv_loop_t *) ::malloc(sizeof(uv_loop_t));
+//	uv_loop_init(libLoop);
+//
+//    uv_idle_t idler;
+//
+////    uv_idle_init(libLoop, &idler);
+////    uv_idle_start(&idler, lib_idle);
+//
+//
+//
+//    uv_timer_init(libLoop, &libMainTimer);
+//    uv_timer_start(&libMainTimer, libTimerCB, 2000, 2000);
+//
+//
+//
+//	// if(info.Length() > 0 && info[0]->IsFunction()) {
+//	// 	startinfo->targetStartCB = new Nan::Callback(Local<Function>::Cast(info[0]));
+//	// }
+//
+//	uv_run(libLoop, UV_RUN_DEFAULT);
+//}
 
-void lib_idle(uv_idle_t* handle) {
 
-	printf("IDLE %d\n",N);
-	N++;
-
-	if(N > 100) {
-		uv_idle_stop(handle);
-	}
-}
-
-LIB_METHOD(Start) {
-	libLoop = (uv_loop_t *) ::malloc(sizeof(uv_loop_t));
-	uv_loop_init(libLoop);
-
-    uv_idle_t idler;
-
-    uv_idle_init(libLoop, &idler);
-    uv_idle_start(&idler, lib_idle);
+//static int N = 0;
+//void lib_idle(uv_idle_t* handle) {
+//
+//	printf("IDLE %d\n",N);
+//	N++;
+//
+//	if(N > 100) {
+//		uv_idle_stop(handle);
+//	}
+//}
 
 
-	uv_run(libLoop, UV_RUN_DEFAULT);
 
+LIB_METHOD(start) {
+	// spawn thread
 	GreaseLogger *l = GreaseLogger::setupClass(DEFAULT_BUFFER_SIZE,LOGGER_DEFAULT_CHUNK_SIZE,libLoop);
 	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
 
-	// if(info.Length() > 0 && info[0]->IsFunction()) {
-	// 	startinfo->targetStartCB = new Nan::Callback(Local<Function>::Cast(info[0]));
-	// }
+
+
+
 	if(libCB) startinfo->targetStartCB = libCB;
 	l->start(GreaseLogger::start_logger_cb, startinfo);
+
+
+
+	libStarted = true;
 	return GREASE_LIB_OK;
 }
 
-LIB_METHOD(Shutdown) {
-	if(libLoop) {
+LIB_METHOD_SYNC(refLoop) {
+
+}
+
+LIB_METHOD(shutdown) {
+	if(libLoop && libStarted) {
+		printf("got shutdown");
 		uv_loop_close(libLoop);
 		free(libLoop);
+//		uv_timer_stop(&libMainTimer);
 	}
 	return GREASE_LIB_OK;
 }

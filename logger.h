@@ -3135,8 +3135,8 @@ protected:
 	// somewhat analagous to the above NAN_METHOD functions for V8
 #ifdef GREASE_LIB
 	LIB_METHOD_FRIEND(setGlobalOpts, GreaseLibOpts *opts);
-	LIB_METHOD_FRIEND(Start);
-	LIB_METHOD_FRIEND(Shutdown);
+	LIB_METHOD_FRIEND(start);
+	LIB_METHOD_FRIEND(shutdown);
 	LIB_METHOD_SYNC_FRIEND(addOriginLabel, uint32_t val, char *utf8, int len);
 	LIB_METHOD_SYNC_FRIEND(addTagLabel, uint32_t val, char *utf8, int len);
 	LIB_METHOD_SYNC_FRIEND(addLevelLabel, uint32_t val, char *utf8, int len);
