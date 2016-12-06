@@ -117,6 +117,7 @@ void GreaseLib_set_flag_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,ui
 
 GreaseLibTargetOpts *GreaseLib_new_GreaseLibTargetOpts();
 void GreaseLib_cleanup_GreaseLibTargetOpts(GreaseLibTargetOpts *opts);
+void GreaseLib_set_string_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,uint32_t flag,const char *s);
 
 LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts);
 LIB_METHOD(addTarget,GreaseLibTargetOpts *opts);
