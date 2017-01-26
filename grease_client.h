@@ -229,6 +229,15 @@ extern int grease_initLogger(void);
 extern int grease_fastInitLogger(void);
 
 /**
+ * sets up the logger if using a local (in process) Grease server.
+ * This version does not try to ping the sink. The extended version
+ * takes a specific path as an argument or NULL
+ * @param path Null terminated absolute path string or NULL
+ * @return GREASE_OK if successful, or GREASE_FAILED if not
+ */
+extern int grease_fastInitLogger_extended(const char *path);
+
+/**
  * shuts down the client
  */
 extern void grease_shutdown(void);

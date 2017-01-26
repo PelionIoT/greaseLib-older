@@ -73,6 +73,11 @@ standalone_test_logsink: CFLAGS+= -DGREASE_LIB -I./deps/$(LIBUVDIR)/include -I./
 standalone_test_logsink: standalone_test_logsink.o libgrease.a
 	$(CXX) $(CXXFLAGS) $(CFLAGS) libgrease.a $(LDFLAGS) -o $@ 
 
+grease_echo: CFLAGS+= -DGREASE_LIB -I./deps/$(LIBUVDIR)/include -I./deps/twlib/include
+grease_echo: $(OUTPUT_DIR)/grease_client.o $(OUTPUT_DIR)/grease_echo.o
+	$(CXX) $(CXXFLAGS) $(CFLAGS) $^ -ldl -o $@ 
+
+
 
 install: tw_lib $(EXTRA_TARGET)
 	./install-sh $(TWSOVERSION) $(INSTALLPREFIX)

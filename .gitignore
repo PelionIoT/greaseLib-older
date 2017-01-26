@@ -60,3 +60,6 @@ deps/gperftools-2.4/thread_dealloc_unittest
 *.o
 *.a
 /standalone_test_logsink
+/grease_echo
+/.project
+/.cproject

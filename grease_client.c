@@ -229,15 +229,9 @@ int _grease_logToRaw(logMeta *f, const char *s, RawLogLen len, char *tobuf, RawL
 #define _GNU_SOURCE
 #define __USE_GNU
 
-#ifdef __APPLE__
-#include <dlfcn.h>
-#include <mach-o/dyld.h>
-#else
 #include <elf.h>
 #include <dlfcn.h>
 #include <link.h>
-#endif
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -325,7 +319,7 @@ int grease_logToSink(logMeta *f, const char *s, RawLogLen len) {
 }
 
 
-#ifndef __APPLE__
+
 
 static int
 grease_plhdr_callback(struct dl_phdr_info *info, size_t size, void *data)
@@ -366,17 +360,6 @@ int check_grease_symbols() {
 	dl_iterate_phdr(grease_plhdr_callback, NULL);
 	return found_module;
 }
-
-#else 
-
-int check_grease_symbols() {
-	found_module = 0;
-// FIXME - need OS X implementation here
-//	dl_iterate_phdr(grease_plhdr_callback, NULL);
-	return 0;
-}
-
-#endif
 
 int ping_sink() {
 	char temp_buf[GREASE_CLIENT_PING_SIZE];
@@ -597,6 +580,26 @@ int grease_fastInitLogger() {
 	}
 	return GREASE_OK;
 }
+
+int grease_fastInitLogger_extended(const char *path) {
+	if(check_grease_symbols()) {
+		_GREASE_DBG_PRINTF("------- Found symbols.\n");
+		grease_log = local_log;
+		return GREASE_OK;
+	} else {
+		// TODO setup Sink connection
+//		grease_log = grease_logToSink;
+//		grease_log = NULL;
+		if(!setup_sink_dgram_socket(path,SINK_NO_PING)) {
+			grease_log = grease_logToSink;
+		} else {
+			grease_log = NULL;
+			return GREASE_FAILED;
+		}
+	}
+	return GREASE_OK;
+}
+
 
 // not the end of the world if this is not called...
 void grease_shutdown() {
