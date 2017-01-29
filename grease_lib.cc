@@ -185,7 +185,7 @@ LIB_METHOD(setGlobalOpts, GreaseLibOpts *opts) {
  * @param len is the length in bytes of that string
  * @return GREASE_OK if all good
  */
-LIB_METHOD_SYNC(addTagLabel, uint32_t val, char *utf8, int len) {
+LIB_METHOD_SYNC(addTagLabel, uint32_t val, const char *utf8, int len) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 	if(utf8 && len > 0) {
 //		Nan::Utf8String v8str(info[1]->ToString());
@@ -206,7 +206,7 @@ LIB_METHOD_SYNC(addTagLabel, uint32_t val, char *utf8, int len) {
  *
  * @return v8::Undefined
  */
-LIB_METHOD_SYNC(addOriginLabel, uint32_t val, char *utf8, int len) {
+LIB_METHOD_SYNC(addOriginLabel, uint32_t val, const char *utf8, int len) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 	if(utf8 && len > 0) {
 		GreaseLogger::logLabel *label = GreaseLogger::logLabel::fromUTF8(utf8,len);
@@ -217,6 +217,51 @@ LIB_METHOD_SYNC(addOriginLabel, uint32_t val, char *utf8, int len) {
 	}
 };
 
+// these match the levels in
+// grease_client.h
+// "Standard levels"
+const char *GREASE_STD_LABEL_LOG = "LOG";
+const char *GREASE_STD_LABEL_ERROR = "ERROR";
+const char *GREASE_STD_LABEL_WARN = "WARN";
+const char *GREASE_STD_LABEL_DEBUG = "DEBUG";
+const char *GREASE_STD_LABEL_DEBUG2 = "DEBUG2";
+const char *GREASE_STD_LABEL_DEBUG3 = "DEBUG3";
+const char *GREASE_STD_LABEL_USER1 = "USER1";
+const char *GREASE_STD_LABEL_USER2 = "USER2";
+const char *GREASE_STD_LABEL_SUCCESS = "SUCCESS";
+const char *GREASE_STD_LABEL_INFO = "INFO";
+const char *GREASE_STD_LABEL_TRACE = "TRACE";
+
+/**
+ * defined in grease_client.h
+#define GREASE_LEVEL_LOG     0x01
+#define GREASE_LEVEL_ERROR   0x02
+#define GREASE_LEVEL_WARN    0x04
+#define GREASE_LEVEL_DEBUG   0x08
+#define GREASE_LEVEL_DEBUG2  0x10
+#define GREASE_LEVEL_DEBUG3  0x20
+#define GREASE_LEVEL_USER1   0x40
+#define GREASE_LEVEL_USER2   0x80
+#define GREASE_LEVEL_SUCCESS 0x100
+#define GREASE_LEVEL_INFO    0x0100
+#define GREASE_LEVEL_TRACE   0x200
+ *
+ */
+
+LIB_METHOD_SYNC(setupStandardLevels) {
+	GreaseLib_addLevelLabel(GREASE_LEVEL_LOG,GREASE_STD_LABEL_LOG,strlen(GREASE_STD_LABEL_LOG));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_ERROR,GREASE_STD_LABEL_ERROR,strlen(GREASE_STD_LABEL_ERROR));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_WARN,GREASE_STD_LABEL_WARN,strlen(GREASE_STD_LABEL_WARN));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_DEBUG,GREASE_STD_LABEL_DEBUG,strlen(GREASE_STD_LABEL_DEBUG));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_DEBUG2,GREASE_STD_LABEL_DEBUG2,strlen(GREASE_STD_LABEL_DEBUG2));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_DEBUG3,GREASE_STD_LABEL_DEBUG3,strlen(GREASE_STD_LABEL_DEBUG3));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_USER1,GREASE_STD_LABEL_USER1,strlen(GREASE_STD_LABEL_USER1));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_USER2,GREASE_STD_LABEL_USER2,strlen(GREASE_STD_LABEL_USER2));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_SUCCESS,GREASE_STD_LABEL_SUCCESS,strlen(GREASE_STD_LABEL_SUCCESS));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_INFO,GREASE_STD_LABEL_INFO,strlen(GREASE_STD_LABEL_INFO));
+	GreaseLib_addLevelLabel(GREASE_LEVEL_TRACE,GREASE_STD_LABEL_TRACE,strlen(GREASE_STD_LABEL_TRACE));
+	return GREASE_OK;
+}
 
 /**
  * addLevelLabel(id,label)
@@ -224,7 +269,7 @@ LIB_METHOD_SYNC(addOriginLabel, uint32_t val, char *utf8, int len) {
  *
  * @return v8::Undefined
  */
-LIB_METHOD_SYNC(addLevelLabel, uint32_t val, char *utf8, int len) {
+LIB_METHOD_SYNC(addLevelLabel, uint32_t val, const char *utf8, int len) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 	if(utf8 && len > 0) {
 		GreaseLogger::logLabel *label = GreaseLogger::logLabel::fromUTF8(utf8,len);
@@ -248,11 +293,15 @@ void GreaseLib_set_flag_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,ui
 	opts->_enabledFlags |= flag;
 }
 
+static int nextTargetOptsId = 0;
+
 GreaseLibTargetOpts *GreaseLib_new_GreaseLibTargetOpts(void) {
 	GreaseLibTargetOpts *ret = (GreaseLibTargetOpts *) ::malloc(sizeof(GreaseLibTargetOpts));
 	::memset(ret,0,sizeof(GreaseLibTargetOpts));
+	ret->optsId = nextTargetOptsId++;
 	return ret;
 }
+
 void GreaseLib_cleanup_GreaseLibTargetOpts(GreaseLibTargetOpts *opts) {
 	if(opts) ::free(opts);
 }
@@ -363,12 +412,34 @@ LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts) {
 
 }
 
+// implements the actionCB call
+void addTarget_actionCB(GreaseLogger *, _errcmn::err_ev &err, void *data) {
+	GreaseLogger::target_start_info *info = (GreaseLogger::target_start_info *)	data;
+	if(info && info->targetStartCB) {
+		if(err.hasErr()) {
+			// pass error - convert to C style error:
+			GreaseLibError errout;
+			errout._errno = err._errno;
+			::strncpy(err.errstr,errout.errstr,sizeof(errout.errstr));
+			info->targetStartCB(&errout,NULL);
+		} else {
+			GreaseLibStartedTargetInfo outinfo;
+			outinfo.targId = info->targId;
+			outinfo.optsId = info->optsId;
+			info->targetStartCB(NULL,&outinfo);
+		}
+	}
+}
 
 
 LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 	GreaseLogger::target_start_info *i = new GreaseLogger::target_start_info();
+	i->cb = addTarget_actionCB;
 //	if(opts->)
+	i->targetStartCB = libCB; // this will be called when target starts
+	assert(opts);
+	i->optsId = opts->optsId;
 
 	TargetId id;
 	GreaseLogger::logTarget *targ = NULL;
@@ -376,37 +447,28 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 	id = l->nextTargetId++;
 	uv_mutex_unlock(&l->nextIdMutex);
 
+	GreaseLogger::delim_data defaultdelim;
+	if(opts->delim) {
+		defaultdelim.setDelim(opts->delim, opts->len_delim);
+	} else {
+		defaultdelim.delim.sprintf("\n");
+	}
+
+	GreaseLogger::LOGGER->Opts.lock();
+	int size = GreaseLogger::LOGGER->Opts.bufferSize;
+	GreaseLogger::LOGGER->Opts.unlock();
+
+
 	if(opts->tty) {
 
-		i->cb = NULL;
 		i->targId = id;
-
-		GreaseLogger::delim_data defaultdelim;
-		if(opts->delim) {
-			defaultdelim.setDelim(opts->delim, opts->len_delim);
-		} else {
-			defaultdelim.delim.sprintf("\n");
-		}
-		GreaseLogger::LOGGER->Opts.lock();
-		int size = GreaseLogger::LOGGER->Opts.bufferSize;
-		GreaseLogger::LOGGER->Opts.unlock();
 
 		// replaces existing default target with this one:
-		targ = new GreaseLogger::ttyTarget(size, DEFAULT_TARGET, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i);
+		targ = new GreaseLogger::ttyTarget(size, id, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i);
 
 	} else if(opts->file) {
-		i->cb = NULL;
 		i->targId = id;
 
-		GreaseLogger::delim_data defaultdelim;
-		if(opts->delim) {
-			defaultdelim.setDelim(opts->delim, opts->len_delim);
-		} else {
-			defaultdelim.delim.sprintf("\n");
-		}
-		GreaseLogger::LOGGER->Opts.lock();
-		int size = GreaseLogger::LOGGER->Opts.bufferSize;
-		GreaseLogger::LOGGER->Opts.unlock();
 
 		int mode = DEFAULT_MODE_FILE_TARGET;
 		int flags = DEFAULT_FLAGS_FILE_TARGET;
@@ -428,13 +490,21 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 				if(opts->fileOpts->_enabledFlags & GREASE_LIB_SET_FILEOPTS_ROTATEONSTART) rotateOpts.rotate_on_start = true;
 			}
 
-			targ = new GreaseLogger::fileTarget(size, DEFAULT_TARGET, GreaseLogger::LOGGER, flags, mode, opts->file,
+			targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
 					std::move(defaultdelim), i, GreaseLogger::targetReady, rotateOpts);
 		} else {
-			targ = new GreaseLogger::fileTarget(size, DEFAULT_TARGET, GreaseLogger::LOGGER, flags, mode, opts->file,
+			targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
 					std::move(defaultdelim), i, GreaseLogger::targetReady);
 		}
 	} else {
+// 		callbackTarget(int buffer_size, uint32_t id, GreaseLogger *o,
+//		targetReadyCB cb, delim_data _delim, target_start_info *readydata) :
+//			logTarget(buffer_size, id, o, cb, std::move(_delim), readydata) {}
+
+		i->targId = id;
+
+		targ = new GreaseLogger::callbackTarget(size,id, GreaseLogger::LOGGER, GreaseLogger::targetReady, std::move(defaultdelim), i);
+
 		if(opts->delim) {
 			targ->delim.setDelim(opts->delim,opts->len_delim);
 		}
@@ -491,7 +561,7 @@ LIB_METHOD_SYNC(unmaskOutByLevel, uint32_t val) {
 GreaseLibFilter *GreaseLib_new_GreaseLibFilter() {
 	GreaseLibFilter *ret = (GreaseLibFilter *) ::malloc(sizeof(GreaseLibFilter));
 	::memset(ret,0,sizeof(GreaseLibFilter));
-	ret->mask = ALL_LEVELS;
+	ret->mask = GREASE_ALL_LEVELS;
 	return ret;
 }
 void GreaseLib_cleanup_GreaseLibFilter(GreaseLibFilter *opts) {

@@ -582,14 +582,24 @@ GreaseLogger::logTarget::logTarget(int buffer_size, uint32_t id, GreaseLogger *o
 
 void GreaseLogger::targetReady(bool ready, _errcmn::err_ev &err, logTarget *t) {
 	target_start_info *info = (target_start_info *) t->readyData;
+	if(!info) {
+		ERROR_OUT("Non fatal: target->readyData is NULL. this is wrong.");
+		return;
+	}
+	info->targId = t->myId;
+	DBG_OUT("@ target ready");
+
 	if(ready) {
 		if(t->myId == DEFAULT_TARGET) {
 			t->owner->defaultTarget = t;
-			if(info && info->cb)
+			if(info && info->cb) {
 				info->cb(t->owner,err,info);
+			}
 		} else {
 			t->owner->targets.addReplace(t->myId,t);
-			info->cb(t->owner,err,info);
+			if(info && info->cb) {
+				info->cb(t->owner,err,info);
+			}
 		}
 	} else {
 		if(err.hasErr()) {
@@ -597,6 +607,7 @@ void GreaseLogger::targetReady(bool ready, _errcmn::err_ev &err, logTarget *t) {
 		}
 		ERROR_OUT("Failed to create target: %d\n", t->myId);
 		if(info && info->cb) {
+			info->targId = NULL;
 			info->cb(t->owner,err,info);
 		}
 		// TODO shutdown?

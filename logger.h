@@ -149,7 +149,7 @@ struct uint64_t_eqstrP {
 #define DEFAULT_TARGET GREASE_DEFAULT_TARGET_ID
 #define DEFAULT_ID 0
 
-#define ALL_LEVELS 0xFFFFFFFF
+#define GREASE_ALL_LEVELS 0xFFFFFFFF
 #define GREASE_STDOUT 1
 #define GREASE_STDERR 2
 #define GREASE_BAD_FD -1
@@ -523,6 +523,7 @@ public:
 		bool needsAsyncQueue; // if the callback must be called in the v8 thread
 		_errcmn::err_ev err;      // used if above is true
 		actionCB cb;
+		int optsId; // used for the caller to track which target got started
 
 		GreaseLibCallback targetStartCB;
 		TargetId targId;
@@ -2354,7 +2355,7 @@ protected:
 			uint64_t max_total_size;  // the max size to maintain, 0 - no setting
 			uint32_t max_file_size;
 			rotationOpts() : enabled(false), rotate_on_start(false), rotate_past(0), max_files(0), max_total_size(0), max_file_size(0) {}
-			rotationOpts(rotationOpts& o) : enabled(true), rotate_on_start(o.rotate_on_start),
+			rotationOpts(rotationOpts& o) : enabled(o.enabled), rotate_on_start(o.rotate_on_start),
 					rotate_past(o.rotate_past), max_files(o.max_files), max_total_size(o.max_total_size), max_file_size(o.max_file_size) {}
 			rotationOpts& operator=(rotationOpts& o) {
 				enabled = true;
@@ -2793,6 +2794,7 @@ protected:
 			while(1) {  // find all files...
 				uv_fs_t req;
 				rotatedFile f(myPath,n);
+				if(!f.path) break; // either something went wrong, or we are past the max rotation of files
 				int r = uv_fs_stat(owner->loggerLoop, &req, f.path, NULL);
 #if (UV_VERSION_MAJOR > 0)
 				if(r < 0) {
@@ -3137,9 +3139,9 @@ protected:
 	LIB_METHOD_FRIEND(setGlobalOpts, GreaseLibOpts *opts);
 	LIB_METHOD_FRIEND(start);
 	LIB_METHOD_FRIEND(shutdown);
-	LIB_METHOD_SYNC_FRIEND(addOriginLabel, uint32_t val, char *utf8, int len);
-	LIB_METHOD_SYNC_FRIEND(addTagLabel, uint32_t val, char *utf8, int len);
-	LIB_METHOD_SYNC_FRIEND(addLevelLabel, uint32_t val, char *utf8, int len);
+	LIB_METHOD_SYNC_FRIEND(addOriginLabel, uint32_t val, const char *utf8, int len);
+	LIB_METHOD_SYNC_FRIEND(addTagLabel, uint32_t val, const char *utf8, int len);
+	LIB_METHOD_SYNC_FRIEND(addLevelLabel, uint32_t val, const char *utf8, int len);
 	LIB_METHOD_SYNC_FRIEND(modifyDefaultTarget,GreaseLibTargetOpts *opts);
 	LIB_METHOD_FRIEND(addTarget,GreaseLibTargetOpts *opts);
 	LIB_METHOD_SYNC_FRIEND(maskOutByLevel, uint32_t val);

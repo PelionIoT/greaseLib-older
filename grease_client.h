@@ -117,6 +117,7 @@ typedef struct extra_logMeta_t {
 
 // Default Levels:
 // these match up with greaseLog/index.js
+// "Standard levels'
 #define GREASE_LEVEL_LOG     0x01
 #define GREASE_LEVEL_ERROR   0x02
 #define GREASE_LEVEL_WARN    0x04

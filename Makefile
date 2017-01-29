@@ -17,11 +17,11 @@ SYSCALLS= syscalls-$(ARCH).c
 
 ALLOBJS= $($<:%.cpp=%.o)
 
-DEBUG_OPTIONS=-rdynamic -D_TW_TASK_DEBUG_THREADS_ 
+DEBUG_OPTIONS=-rdynamic -D_TW_TASK_DEBUG_THREADS_ -DLOGGER_HEAVY_DEBUG
 #-D_TW_BUFBLK_DEBUG_STACK_
 CFLAGS= $(DEBUG_OPTIONS) $(GLIBCFLAG) -D_TW_DEBUG -I./include  -D__DEBUG   -fPIC -I./deps/$(LIBUVDIR)/include -I./deps/build/include  -L./deps/build/lib
 
-DEBUG_CFLAGS= -g
+DEBUG_CFLAGS= -g -DERRCMN_DEBUG_BUILD
 
 ROOT_DIR=.
 OUTPUT_DIR=.

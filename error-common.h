@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifndef GREASE_LIB
 #include <v8.h>

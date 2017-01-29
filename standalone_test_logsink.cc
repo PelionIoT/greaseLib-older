@@ -3,10 +3,37 @@
 #include "logger.h"
 #include "grease_lib.h"
 #include <unistd.h>
+#include <string.h>
 
-void loggerStartedCB(GreaseLibError *, void *) {
+void loggerStartedCB(GreaseLibError *, void *d) {
 	printf("Logger started.\n");
 }
+
+GreaseLibFilter *f1, *f2;
+
+void filterAddCB(GreaseLibError *err, void *d) {
+	if(!err) {
+		printf("Filter added\n" );
+	} else {
+		printf("Filter add failure: %d %s\n",err->_errno, err->errstr);
+	}
+}
+
+void targetAddCB(GreaseLibError *err, void *d) {
+	if(!err) {
+		GreaseLibStartedTargetInfo *info = 	(GreaseLibStartedTargetInfo *) d;
+		printf("Target added - ID:%d (optsID:%d)\n",info->targId,info->optsId );
+		if(info->optsId == 0) {
+			printf("adding Filter\n");
+			GreaseLib_setvalue_GreaseLibFilter(f1,GREASE_LIB_SET_FILTER_TARGET,info->targId);
+			GreaseLib_addFilter(f1);
+		}
+	} else {
+		printf("Target Failure: %d %s\n",err->_errno, err->errstr);
+	}
+}
+
+const char *level_format = "%-10s ";
 
 int main() {
 	GreaseLib_start(loggerStartedCB);
@@ -15,9 +42,33 @@ int main() {
 	sleep(5);
 	printf("after sleep - setup sink\n");
 
+	GreaseLib_setupStandardLevels();
 	// test setting up a sink
 
 	GreaseLibSink *sink = GreaseLib_new_GreaseLibSink(GREASE_LIB_SINK_UNIXDGRAM,"/tmp/testsocket");
+
+	// setup a file destination
+
+	GreaseLibTargetOpts *target = GreaseLib_new_GreaseLibTargetOpts();
+
+	char outFile[] = "/tmp/output.log";
+
+	target->file = outFile;
+	target->format_level = (char *) level_format;
+	target->format_level_len = strlen(level_format);
+
+	target->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
+	f1 = GreaseLib_new_GreaseLibFilter();
+
+	GreaseLib_addTarget(targetAddCB, target);
+
+	// another target... will be ignored - since nothing if directed to it yet
+//	GreaseLibTargetOpts *target2 = GreaseLib_new_GreaseLibTargetOpts();
+//	char outFile2[] = "/tmp/output2.log";
+//	target2->file = outFile;
+//	target2->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
+//
+//	GreaseLib_addTarget(targetAddCB, target2);
 
 	int ret;
 
@@ -29,7 +80,7 @@ int main() {
 
 
 
-	sleep(5);
+	sleep(30);
 
 	printf("sleep over\n");
 

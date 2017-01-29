@@ -62,11 +62,14 @@ typedef struct {
 LIB_METHOD(setGlobalOpts, GreaseLibOpts *opts);
 LIB_METHOD(start);
 LIB_METHOD(shutdown);
-LIB_METHOD_SYNC(addTagLabel, uint32_t val, char *utf8, int len);
-LIB_METHOD_SYNC(addOriginLabel, uint32_t val, char *utf8, int len);
-LIB_METHOD_SYNC(addLevelLabel, uint32_t val, char *utf8, int len);
+LIB_METHOD_SYNC(addTagLabel, uint32_t val, const char *utf8, int len);
+LIB_METHOD_SYNC(addOriginLabel, uint32_t val, const char *utf8, int len);
+LIB_METHOD_SYNC(addLevelLabel, uint32_t val, const char *utf8, int len);
 LIB_METHOD_SYNC(maskOutByLevel, uint32_t val);
 LIB_METHOD_SYNC(unmaskOutByLevel, uint32_t val);
+
+LIB_METHOD_SYNC(setupStandardLevels);
+
 
 
 #define GREASE_LIB_SET_FILEOPTS_MODE           0x10000000
@@ -93,6 +96,7 @@ typedef struct {
 	int len_delim_output;
 	char *tty;
 	char *file;
+	int optsId; // filled in automatically
 	GreaseLibCallback targetCB; // used if this is target is a callback
 	GreaseLibTargetFileOpts *fileOpts; // NULL if not needed
 	char *format_pre;
@@ -110,6 +114,12 @@ typedef struct {
 	char *format_pre_msg;
 	int format_pre_msg_len;
 } GreaseLibTargetOpts;
+
+typedef struct {
+	int optsId;
+	TargetId targId;
+} GreaseLibStartedTargetInfo;
+
 
 GreaseLibTargetFileOpts *GreaseLib_new_GreaseLibTargetFileOpts();
 void GreaseLib_cleanup_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts);
