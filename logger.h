@@ -1375,7 +1375,7 @@ protected:
 						std::string cap_date;
 						int cap_pid;
 						std::string cap_msg;
-						DECL_LOG_META(meta_syslog, GREASE_TAG_SYSLOG, GREASE_LEVEL_LOG, 0 );
+						DECL_LOG_META(meta_syslog, GREASE_TAG_SYSLOG, GREASE_LEVEL_LOG, 0 ); // static meta struct we will use
 
 						while(iov_n < nbuffers && remain > 0) {
 							if(iov[iov_n].iov_len > 0) {
@@ -1396,6 +1396,9 @@ protected:
 									sink->owner->logP(&meta_syslog,(char *) iov[iov_n].iov_base,iov[iov_n].iov_len);
 
 								}
+
+								LOG_META_RESET_CACHE( meta_syslog );
+
 
 								remain -= iov[iov_n].iov_len;
 								iov_n++;

@@ -102,7 +102,7 @@ typedef struct extra_logMeta_t {
 #define __DEFAULT_LOG_META_PRIVATE ._cached_hash = { UINT64_C(0xFFFFFFFFFFFFFFFF), 0, 0 }, \
 		._cached_lists = { NULL, NULL, NULL, NULL }
 
-#define DECL_LOG_META( name, _tag, _level, _origin ) logMeta name = { \
+#define DECL_LOG_META( varname, _tag, _level, _origin ) logMeta varname = { \
 .tag = _tag, \
 .level = _level, \
 .origin = _origin, \
@@ -110,6 +110,7 @@ typedef struct extra_logMeta_t {
 .extras = 0, \
 __DEFAULT_LOG_META_PRIVATE }
 
+#define LOG_META_RESET_CACHE( varname ) { varname._cached_hash[0]=UINT64_C(0xFFFFFFFFFFFFFFFF); varname._cached_hash[1]=0; varname._cached_hash[2]=0; varname._cached_lists[0]=NULL;varname._cached_lists[1]=NULL;varname._cached_lists[2]=NULL;varname._cached_lists[3]=NULL; }
 
 #define META_HAS_IGNORES(m) ( m.extras != 0 )
 #define META_HAS_EXTRAS(m) ( m.extras != 0 )
