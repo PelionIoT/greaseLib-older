@@ -43,6 +43,7 @@ int main() {
 	printf("after sleep - setup sink\n");
 
 	GreaseLib_setupStandardLevels();
+	GreaseLib_setupStandardTags();
 	// test setting up a sink
 
 	GreaseLibSink *sink = GreaseLib_new_GreaseLibSink(GREASE_LIB_SINK_UNIXDGRAM,"/tmp/testsocket");
@@ -78,9 +79,17 @@ int main() {
 	printf("after setup sink\n");
 
 
+	GreaseLibSink *sink2 = GreaseLib_new_GreaseLibSink(GREASE_LIB_SINK_SYSLOGDGRAM,"/dev/log");
+
+	if((ret = GreaseLib_addSink(sink2)) != GREASE_LIB_OK) {
+		printf("ERROR on addSink(): %d",ret);
+	}
+	printf("after setup sink\n");
 
 
-	sleep(30);
+
+
+	sleep(120);
 
 	printf("sleep over\n");
 

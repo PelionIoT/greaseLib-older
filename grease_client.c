@@ -26,8 +26,7 @@ extern "C" {
 #endif
 
 
-#define __DEFAULT_LOG_META_PRIVATE ._cached_hash = { UINT64_C(0xFFFFFFFFFFFFFFFF), 0, 0 }, \
-		._cached_lists = { NULL, NULL, NULL, NULL }
+
 
 uint32_t __grease_default_tag = GLOG_DEFAULT_TAG;
 

@@ -99,6 +99,18 @@ typedef struct extra_logMeta_t {
 } extra_logMeta;
 
 
+#define __DEFAULT_LOG_META_PRIVATE ._cached_hash = { UINT64_C(0xFFFFFFFFFFFFFFFF), 0, 0 }, \
+		._cached_lists = { NULL, NULL, NULL, NULL }
+
+#define DECL_LOG_META( name, _tag, _level, _origin ) logMeta name = { \
+.tag = _tag, \
+.level = _level, \
+.origin = _origin, \
+.target = 0, \
+.extras = 0, \
+__DEFAULT_LOG_META_PRIVATE }
+
+
 #define META_HAS_IGNORES(m) ( m.extras != 0 )
 #define META_HAS_EXTRAS(m) ( m.extras != 0 )
 #define META_IGNORE_LIST(s) grease_container_of(&s,struct extra_logMeta_t,m)->ignore_list
@@ -115,6 +127,9 @@ typedef struct extra_logMeta_t {
 #define GREASE_FAILED 1
 #define GREASE_OK 0
 
+
+// "STANDARD" setup:
+
 // Default Levels:
 // these match up with greaseLog/index.js
 // "Standard levels'
@@ -129,6 +144,15 @@ typedef struct extra_logMeta_t {
 #define GREASE_LEVEL_SUCCESS 0x100
 #define GREASE_LEVEL_INFO    0x0100
 #define GREASE_LEVEL_TRACE   0x200
+
+
+// Standard tags
+#define GREASE_TAG_STDOUT  0x01
+#define GREASE_TAG_STDERR  0x02
+#define GREASE_TAG_SYSLOG  0x03
+
+
+// End "STANDARD" setup
 
 extern int (*grease_log)(const logMeta *f, const char *s, RawLogLen len);
 

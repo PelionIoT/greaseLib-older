@@ -248,6 +248,10 @@ const char *GREASE_STD_LABEL_TRACE = "TRACE";
  *
  */
 
+const char *GREASE_STD_LABEL_SYSLOG = "syslog";
+const char *GREASE_STD_LABEL_STDOUT = "stdout";
+const char *GREASE_STD_LABEL_STDERR = "stderr";
+
 LIB_METHOD_SYNC(setupStandardLevels) {
 	GreaseLib_addLevelLabel(GREASE_LEVEL_LOG,GREASE_STD_LABEL_LOG,strlen(GREASE_STD_LABEL_LOG));
 	GreaseLib_addLevelLabel(GREASE_LEVEL_ERROR,GREASE_STD_LABEL_ERROR,strlen(GREASE_STD_LABEL_ERROR));
@@ -262,6 +266,14 @@ LIB_METHOD_SYNC(setupStandardLevels) {
 	GreaseLib_addLevelLabel(GREASE_LEVEL_TRACE,GREASE_STD_LABEL_TRACE,strlen(GREASE_STD_LABEL_TRACE));
 	return GREASE_OK;
 }
+
+LIB_METHOD_SYNC(setupStandardTags) {
+	GreaseLib_addTagLabel(GREASE_TAG_SYSLOG,GREASE_STD_LABEL_SYSLOG,strlen(GREASE_STD_LABEL_SYSLOG));
+	GreaseLib_addTagLabel(GREASE_TAG_STDOUT,GREASE_STD_LABEL_STDOUT,strlen(GREASE_STD_LABEL_STDOUT));
+	GreaseLib_addTagLabel(GREASE_TAG_STDERR,GREASE_STD_LABEL_STDERR,strlen(GREASE_STD_LABEL_STDERR));
+	return GREASE_OK;
+}
+
 
 /**
  * addLevelLabel(id,label)
@@ -688,6 +700,18 @@ LIB_METHOD_SYNC(addSink,GreaseLibSink *sink) {
 		uv_mutex_unlock(&l->nextIdMutex);
 
 		GreaseLogger::UnixDgramSink *newsink = new GreaseLogger::UnixDgramSink(l, sink->path, sink->id, l->loggerLoop);
+		GreaseLogger::Sink *base = dynamic_cast<GreaseLogger::Sink *>(newsink);
+
+		newsink->bind();
+		newsink->start();
+
+		l->sinks.addReplace(sink->id,base);
+	} else if (sink->sink_type == GREASE_LIB_SINK_SYSLOGDGRAM) {
+		uv_mutex_lock(&l->nextIdMutex);
+		sink->id = l->nextSinkId++;
+		uv_mutex_unlock(&l->nextIdMutex);
+
+		GreaseLogger::SyslogDgramSink *newsink = new GreaseLogger::SyslogDgramSink(l, sink->path, sink->id, l->loggerLoop);
 		GreaseLogger::Sink *base = dynamic_cast<GreaseLogger::Sink *>(newsink);
 
 		newsink->bind();

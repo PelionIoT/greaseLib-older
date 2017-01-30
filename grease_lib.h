@@ -69,6 +69,7 @@ LIB_METHOD_SYNC(maskOutByLevel, uint32_t val);
 LIB_METHOD_SYNC(unmaskOutByLevel, uint32_t val);
 
 LIB_METHOD_SYNC(setupStandardLevels);
+LIB_METHOD_SYNC(setupStandardTags);
 
 
 
@@ -176,6 +177,7 @@ LIB_METHOD_SYNC(enableFilter,GreaseLibFilter *filter);
 
 #define GREASE_LIB_SINK_UNIXDGRAM 0x1
 #define GREASE_LIB_SINK_PIPE 0x2
+#define GREASE_LIB_SINK_SYSLOGDGRAM 0x3
 
 typedef struct {
 	char path[GREASE_PATH_MAX];
