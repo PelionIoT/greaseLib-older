@@ -13,6 +13,7 @@ LOG=${DEPS_DIR}/../install_deps.log
 GPERF_DIR=${DEPS_DIR}/gperftools-2.4
 LIBUV_DIR=${DEPS_DIR}/libuv-v1.10.1
 LIBTW_DIR=${DEPS_DIR}/twlib
+PCRE_DIR=${DEPS_DIR}/pcre2-10.22
 
 rm -f $LOG
 mkdir -p ${DEPS_DIR}/build
@@ -70,6 +71,14 @@ else
 fi
 
 popd
+
+pushd $PCRE_DIR
+
+./configure --prefix=${DEPS_DIR}/build
+make
+make install
+popd
+
 
 pushd $LIBTW_DIR
 
