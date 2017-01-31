@@ -52,11 +52,12 @@ GreaseLibBuf *GreaseLib_new_GreaseLibBuf(size_t l);
 void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b);
 
 
+#define GREASE_BOOL int
 typedef struct {
 	uint32_t LevelFilterOut;
-	bool defaultFilterOut;
-	bool show_filters;
-	bool callback_errors;
+	GREASE_BOOL defaultFilterOut;
+	GREASE_BOOL show_filters;
+	GREASE_BOOL callback_errors;
 } GreaseLibOpts;
 
 LIB_METHOD(setGlobalOpts, GreaseLibOpts *opts);
