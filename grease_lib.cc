@@ -37,8 +37,8 @@ void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b) {
 }
 
 uv_thread_t libThread;
-uv_loop_t *libLoop = NULL;
-uv_timer_t libMainTimer;
+uv_loop_t libLoop;
+uv_timer_t idleTimer;
 bool libStarted = false;
 
 //void libTimerCB(uv_timer_t* handle) {
@@ -89,22 +89,34 @@ bool libStarted = false;
 //	}
 //}
 
+int observationCounter;
 
+void libraryMain(void *arg) {
+	libStarted = true;
+// Callbacks will occur in this thread.
+	uv_run(&libLoop, UV_RUN_DEFAULT);
+}
+
+void heartbeat(uv_timer_t* handle) {
+	observationCounter++;
+	//	printf("\nheartbeat.\n\n");
+}
 
 LIB_METHOD(start) {
+	uv_loop_init(&libLoop);
+
+	observationCounter = 0;
 	// spawn thread
-	GreaseLogger *l = GreaseLogger::setupClass(DEFAULT_BUFFER_SIZE,LOGGER_DEFAULT_CHUNK_SIZE,libLoop);
+	uv_thread_create(&libThread, libraryMain, NULL);
+	// timer keeps uv_run up
+	uv_timer_init(&libLoop, &idleTimer);
+	uv_timer_start(&idleTimer, heartbeat, 5000, 2000);
+	GreaseLogger *l = GreaseLogger::setupClass(DEFAULT_BUFFER_SIZE,LOGGER_DEFAULT_CHUNK_SIZE,&libLoop);
 	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
-
-
-
 
 	if(libCB) startinfo->targetStartCB = libCB;
 	l->start(GreaseLogger::start_logger_cb, startinfo);
 
-
-
-	libStarted = true;
 	return GREASE_LIB_OK;
 }
 
@@ -113,10 +125,10 @@ LIB_METHOD_SYNC(refLoop) {
 }
 
 LIB_METHOD(shutdown) {
-	if(libLoop && libStarted) {
+	if(libStarted) {
 		printf("got shutdown");
-		uv_loop_close(libLoop);
-		free(libLoop);
+		uv_timer_stop(&idleTimer);
+		uv_loop_close(&libLoop);
 //		uv_timer_stop(&libMainTimer);
 	}
 	return GREASE_LIB_OK;

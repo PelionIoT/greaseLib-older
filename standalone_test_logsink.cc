@@ -9,7 +9,7 @@ void loggerStartedCB(GreaseLibError *, void *d) {
 	printf("Logger started.\n");
 }
 
-GreaseLibFilter *f1, *f2;
+GreaseLibFilter *f1, *f2, *f3;
 
 void filterAddCB(GreaseLibError *err, void *d) {
 	if(!err) {
@@ -18,6 +18,23 @@ void filterAddCB(GreaseLibError *err, void *d) {
 		printf("Filter add failure: %d %s\n",err->_errno, err->errstr);
 	}
 }
+
+char output_buf[1024];
+
+void targetCallback(GreaseLibError *err, void *d) {
+	printf("**** in targetCallback\n");
+	GreaseLibBuf *buf = (GreaseLibBuf *)d;
+	if(buf->size < 1023) {
+		memcpy(output_buf,buf->data,buf->size);
+		*(buf->data+buf->size+1) = '\0';
+		printf("CALLBACK TARGET>>>>>>>>>%s<<<<<<<<<<<<<<<<\n",output_buf);
+	} else {
+		printf("OOOPS. Overflow on test output. size was %d\n",buf->size);
+	}
+	GreaseLib_cleanup_GreaseLibBuf(buf);
+}
+
+#define CALLBACK_TARG_OPTID 99
 
 void targetAddCB(GreaseLibError *err, void *d) {
 	if(!err) {
@@ -28,12 +45,20 @@ void targetAddCB(GreaseLibError *err, void *d) {
 			GreaseLib_setvalue_GreaseLibFilter(f1,GREASE_LIB_SET_FILTER_TARGET,info->targId);
 			GreaseLib_addFilter(f1);
 		}
+		if(info->optsId == CALLBACK_TARG_OPTID) {
+			printf("adding Filter for callback target\n");
+			GreaseLib_setvalue_GreaseLibFilter(f3,GREASE_LIB_SET_FILTER_MASK,GREASE_ALL_LEVELS);
+			GreaseLib_setvalue_GreaseLibFilter(f3,GREASE_LIB_SET_FILTER_TARGET,info->targId);
+			GreaseLib_addFilter(f3);
+		}
 	} else {
 		printf("Target Failure: %d %s\n",err->_errno, err->errstr);
 	}
 }
 
 const char *level_format = "%-10s ";
+
+const int WAITSECS = 90;
 
 int main() {
 	GreaseLib_start(loggerStartedCB);
@@ -63,13 +88,16 @@ int main() {
 
 	GreaseLib_addTarget(targetAddCB, target);
 
+	f3 = GreaseLib_new_GreaseLibFilter();
+
 	// another target... will be ignored - since nothing if directed to it yet
-//	GreaseLibTargetOpts *target2 = GreaseLib_new_GreaseLibTargetOpts();
-//	char outFile2[] = "/tmp/output2.log";
+	GreaseLibTargetOpts *target2 = GreaseLib_new_GreaseLibTargetOpts();
 //	target2->file = outFile;
 //	target2->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
-//
-//	GreaseLib_addTarget(targetAddCB, target2);
+	target2->optsId = CALLBACK_TARG_OPTID;
+	target2->targetCB = targetCallback;
+
+	GreaseLib_addTarget(targetAddCB, target2);
 
 	int ret;
 
@@ -88,11 +116,12 @@ int main() {
 
 
 
-
-	sleep(120);
+	printf("Will shutdown in %d seconds\n",WAITSECS);
+	sleep(WAITSECS);
 
 	printf("sleep over\n");
 
 	GreaseLib_shutdown(NULL);
 
 }
+;

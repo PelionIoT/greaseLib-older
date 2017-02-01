@@ -3312,7 +3312,12 @@ protected:
 	public:
 		callbackTarget(int buffer_size, uint32_t id, GreaseLogger *o,
 				targetReadyCB cb, delim_data _delim, target_start_info *readydata) :
-					logTarget(buffer_size, id, o, cb, std::move(_delim), readydata) {}
+					logTarget(buffer_size, id, o, cb, std::move(_delim), readydata)
+	{
+			_errcmn::err_ev err;
+			if(cb) cb(true,err,this);
+	}
+
 		callbackTarget() = delete;
 
 		// 			d->t->returnBuffer(d->b);
@@ -3612,7 +3617,8 @@ protected:
     	targets(),
     	sinks(),
     	tagLabels(), originLabels(), levelLabels(),
-	    loggerLoop(NULL)
+	    loggerLoop(NULL),
+		nextSinkId(0)
     	{
     	   	LOGGER = this;
     	    loggerLoop = uv_loop_new();    // we use our *own* event loop (not the node/io.js one)
