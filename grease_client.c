@@ -318,6 +318,7 @@ int grease_logToSink(logMeta *f, const char *s, RawLogLen len) {
 }
 
 
+#ifndef GREASE_IS_LOCAL
 
 
 static int
@@ -359,6 +360,8 @@ int check_grease_symbols() {
 	dl_iterate_phdr(grease_plhdr_callback, NULL);
 	return found_module;
 }
+
+#endif
 
 int ping_sink() {
 	char temp_buf[GREASE_CLIENT_PING_SIZE];
@@ -562,6 +565,10 @@ int grease_initLogger() {
 }
 
 int grease_fastInitLogger() {
+#ifdef GREASE_IS_LOCAL
+	grease_log = local_log;
+	return GREASE_OK;
+#else
 	if(check_grease_symbols()) {
 		_GREASE_DBG_PRINTF("------- Found symbols.\n");
 		grease_log = local_log;
@@ -578,9 +585,14 @@ int grease_fastInitLogger() {
 		}
 	}
 	return GREASE_OK;
+#endif
 }
 
 int grease_fastInitLogger_extended(const char *path) {
+#ifdef GREASE_IS_LOCAL
+	grease_log = local_log;
+	return GREASE_OK;
+#else
 	if(check_grease_symbols()) {
 		_GREASE_DBG_PRINTF("------- Found symbols.\n");
 		grease_log = local_log;
@@ -597,6 +609,7 @@ int grease_fastInitLogger_extended(const char *path) {
 		}
 	}
 	return GREASE_OK;
+#endif
 }
 
 

@@ -37,7 +37,9 @@ LD_TEST_FLAGS= -lgtest
 
 ## concerning the -whole-archive flags: http://stackoverflow.com/questions/14889941/link-a-static-library-to-a-shared-one-during-build
 ## originally we used that when creating the node module version of greaseLogger - but apparently needed for tcmalloc here also
-LDFLAGS += -L./deps/build/lib -luv deps/build/lib/libre2.a -ldl -lTW -Wl,-whole-archive deps/build/lib/libtcmalloc.a -Wl,-no-whole-archive 
+LDFLAGS += -L./deps/build/lib deps/build/lib/libuv.a deps/build/lib/libre2.a -ldl -lTW -Wl,-whole-archive deps/build/lib/libtcmalloc.a -Wl,-no-whole-archive 
+
+STATIC_LIB_FLAGS= deps/build/lib/libuv.a deps/build/lib/libre2.a -ldl -lTW -Wl,-whole-archive deps/build/lib/libtcmalloc.a -Wl,-no-whole-archive
 
 HRDS= include/TW/tw_bufblk.h  include/TW/tw_globals.h  include/TW/tw_object.h include/TW/tw_stack.h\
 include/TW/tw_dlist.h   include/TW/tw_llist.h    include/TW/tw_socktask.h    include/TW/tw_syscalls.h\
@@ -65,7 +67,12 @@ $(OUTPUT_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 
-libgrease.a: CFLAGS += -DGREASE_LIB
+
+libgrease.so.1: CFLAGS += -shared -Wl,-soname,libgrease.so.1	
+libgrease.so.1: $(OBJS) 
+	$(CXX) $(CFLAGS) $(LDFLAGS)  -o $@ $^ 
+
+libgrease.a: CFLAGS += -static -DGREASE_LIB
 libgrease.a: $(OBJS)
 	$(AR) rcs $@ $^ 
 
