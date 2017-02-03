@@ -543,6 +543,10 @@ int grease_initLogger() {
 #ifndef GREASE_NO_DEFAULT_NATIVE_ORIGIN
 	__grease_default_origin = __grease_get_default_origin();
 #endif
+#ifdef GREASE_IS_LOCAL
+	grease_log = local_log;
+	return GREASE_OK;
+#else
 	if(found_module != MODULE_SEARCH_NOT_RAN) {
 		if(found_module) {
 			grease_log = local_log;
@@ -562,6 +566,7 @@ int grease_initLogger() {
 		return GREASE_FAILED;
 	}
 	return GREASE_OK;
+#endif
 }
 
 int grease_fastInitLogger() {

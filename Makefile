@@ -76,6 +76,11 @@ libgrease.a: CFLAGS += -static -DGREASE_LIB
 libgrease.a: $(OBJS)
 	$(AR) rcs $@ $^ 
 
+libgrease.a-server: CFLAGS += -DGREASE_IS_LOCAL -static -DGREASE_LIB 
+libgrease.a-server: $(OBJS)
+	$(AR) rcs libgrease.a $^ 
+
+
 standalone_test_logsink: CFLAGS+= -DGREASE_LIB -I./deps/$(LIBUVDIR)/include -I./deps/twlib/include
 standalone_test_logsink: standalone_test_logsink.o libgrease.a
 	$(CXX) $(CXXFLAGS) $(CFLAGS) libgrease.a $(LDFLAGS) -o $@ 
