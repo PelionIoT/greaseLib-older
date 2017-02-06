@@ -64,3 +64,4 @@ deps/gperftools-2.4/thread_dealloc_unittest
 /.project
 /.cproject
 /test-re
+*.so.1
