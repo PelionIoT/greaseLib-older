@@ -12,14 +12,14 @@ LIBUVDIR= libuv-v1.10.1
 CXXFLAGS= -fPIC -std=c++11
 
 ARCH ?=x86 
-#ARCH=armel
+#ARCH=armel	
 SYSCALLS= syscalls-$(ARCH).c
 
 ALLOBJS= $($<:%.cpp=%.o)
 
 DEBUG_OPTIONS=-rdynamic -D_TW_TASK_DEBUG_THREADS_ -DLOGGER_HEAVY_DEBUG
 #-D_TW_BUFBLK_DEBUG_STACK_
-CFLAGS= $(DEBUG_OPTIONS) $(GLIBCFLAG) -D_TW_DEBUG -I./include  -D__DEBUG   -fPIC -I./deps/$(LIBUVDIR)/include -I./deps/build/include  -L./deps/build/lib
+CFLAGS= $(DEBUG_OPTIONS) $(GLIBCFLAG) -D_TW_DEBUG -I./include  -D__DEBUG   -fPIC -I./deps/$(LIBUVDIR)/include -I./deps/build/include  -L./deps/build/lib -DGREASE_LIB
 
 DEBUG_CFLAGS= -g -DERRCMN_DEBUG_BUILD
 
