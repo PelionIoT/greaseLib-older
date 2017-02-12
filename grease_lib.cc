@@ -310,6 +310,10 @@ GreaseLibTargetFileOpts *GreaseLib_new_GreaseLibTargetFileOpts() {
 	::memset(ret,0,sizeof(GreaseLibTargetFileOpts));
 	return ret;
 }
+GreaseLibTargetFileOpts *GreaseLib_init_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *ret) {
+	::memset(ret,0,sizeof(GreaseLibTargetFileOpts));
+	return ret;
+}
 void GreaseLib_cleanup_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts) {
 	if(opts) ::free(opts);
 }
@@ -325,6 +329,14 @@ GreaseLibTargetOpts *GreaseLib_new_GreaseLibTargetOpts(void) {
 	ret->optsId = nextTargetOptsId++;
 	return ret;
 }
+
+GreaseLibTargetOpts *GreaseLib_init_GreaseLibTargetOpts(GreaseLibTargetOpts *ret) {
+	::memset(ret,0,sizeof(GreaseLibTargetOpts));
+	ret->optsId = nextTargetOptsId++;
+	return ret;
+}
+
+
 
 void GreaseLib_cleanup_GreaseLibTargetOpts(GreaseLibTargetOpts *opts) {
 	if(opts) ::free(opts);
