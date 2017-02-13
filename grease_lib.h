@@ -170,6 +170,7 @@ typedef struct {
 } GreaseLibFilter;
 
 GreaseLibFilter *GreaseLib_new_GreaseLibFilter();
+GreaseLibFilter *GreaseLib_init_GreaseLibFilter(GreaseLibFilter *);
 void GreaseLib_cleanup_GreaseLibFilter(GreaseLibFilter *filter);
 void GreaseLib_setvalue_GreaseLibFilter(GreaseLibFilter *opts,uint32_t flag,uint32_t val);
 
@@ -189,6 +190,7 @@ typedef struct {
 } GreaseLibSink;
 
 GreaseLibSink *GreaseLib_new_GreaseLibSink(uint32_t sink_type, const char *path);
+GreaseLibSink *GreaseLib_init_GreaseLibSink(GreaseLibSink *ret, uint32_t sink_type, const char *path);
 void GreaseLib_cleanup_GreaseLibSink(GreaseLibSink *sink);
 
 LIB_METHOD_SYNC(addSink,GreaseLibSink *sink);

@@ -600,6 +600,12 @@ GreaseLibFilter *GreaseLib_new_GreaseLibFilter() {
 	ret->mask = GREASE_ALL_LEVELS;
 	return ret;
 }
+GreaseLibFilter *GreaseLib_init_GreaseLibFilter(GreaseLibFilter *ret) {
+	::memset(ret,0,sizeof(GreaseLibFilter));
+	ret->mask = GREASE_ALL_LEVELS;
+	return ret;
+}
+
 void GreaseLib_cleanup_GreaseLibFilter(GreaseLibFilter *opts) {
 	if(opts) ::free(opts);
 }
@@ -697,6 +703,14 @@ GreaseLibSink *GreaseLib_new_GreaseLibSink(uint32_t sink_type, const char *path)
 	::strncpy(ret->path,path,GREASE_PATH_MAX);
 	return ret;
 }
+
+GreaseLibSink *GreaseLib_init_GreaseLibSink(GreaseLibSink *ret, uint32_t sink_type, const char *path) {
+	::memset(ret,0,sizeof(GreaseLibSink));
+	ret->sink_type = sink_type;
+	::strncpy(ret->path,path,GREASE_PATH_MAX);
+	return ret;
+}
+
 void GreaseLib_cleanup_GreaseLibSink(GreaseLibSink *sink) {
 	if(sink) {
 		::free(sink);
