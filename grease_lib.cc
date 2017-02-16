@@ -15,6 +15,9 @@
 
 using namespace Grease;
 
+static int nextTargetOptsId = 0;
+
+
 void GreaseLib_init_GreaseLibBuf(GreaseLibBuf *b)
 {
 	b->data = NULL;
@@ -321,18 +324,23 @@ void GreaseLib_set_flag_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,ui
 	opts->_enabledFlags |= flag;
 }
 
-static int nextTargetOptsId = 0;
 
 GreaseLibTargetOpts *GreaseLib_new_GreaseLibTargetOpts(void) {
 	GreaseLibTargetOpts *ret = (GreaseLibTargetOpts *) ::malloc(sizeof(GreaseLibTargetOpts));
+	GreaseLogger *l = GreaseLogger::setupClass();
 	::memset(ret,0,sizeof(GreaseLibTargetOpts));
-	ret->optsId = nextTargetOptsId++;
+	uv_mutex_lock(&l->nextOptsIdMutex);
+	ret->optsId = l->nextOptsId++;
+	uv_mutex_unlock(&l->nextOptsIdMutex);
 	return ret;
 }
 
 GreaseLibTargetOpts *GreaseLib_init_GreaseLibTargetOpts(GreaseLibTargetOpts *ret) {
 	::memset(ret,0,sizeof(GreaseLibTargetOpts));
-	ret->optsId = nextTargetOptsId++;
+	GreaseLogger *l = GreaseLogger::setupClass();
+	uv_mutex_lock(&l->nextOptsIdMutex);
+	ret->optsId = l->nextOptsId++;
+	uv_mutex_unlock(&l->nextOptsIdMutex);
 	return ret;
 }
 
