@@ -1205,6 +1205,7 @@ protected:
 				if(socket_fd < 0) {
 					ERROR_PERROR("SyslogDgramSink: Failed to create SOCK_DGRAM socket.\n", errno);
 				} else {
+
 					if(pipe(wakeup_pipe) < 0) {
 						ERROR_PERROR("SyslogDgramSink: Failed to pipe() for SOCK_DGRAM socket.\n", errno);
 					} else {
@@ -1217,6 +1218,11 @@ protected:
 							ERROR_PERROR("SyslogDgramSink: Failed to bind() SOCK_DGRAM socket.\n", errno);
 							close(socket_fd);
 						} else {
+							// set permissions:
+							if(chmod(path, 0666) < 0) {
+								ERROR_PERROR("SyslogDgramSink: could not set permissions to 0666\n",errno);
+							}
+
 							ready = true;
 						}
 					}
@@ -1228,39 +1234,6 @@ protected:
 		}
 
 
-		//uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
-//		static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
-//			uv_buf_t buf;
-//			heapBuf *b = NULL;
-//			PipeClient *client = (PipeClient *) handle->data;
-//			if(client->self->buffers.remove(b)) {          // grab an existing buffer
-//				buf.base = b->handle.base;
-//				buf.len = b->handle.len;
-//				b->return_cb = (heapBuf::heapBufManager *) client->self;  // assign class/callback
-//			} else {
-//				ERROR_OUT("UnixDgramSink: alloc_cb failing. no sink buffers.\n");
-//				buf.len = 0;
-//				buf.base = NULL;
-//			}
-//			return buf;
-//		}
-//		static void on_new_conn(uv_stream_t* server, int status) {
-//			UnixDgramSink *sink = (UnixDgramSink *) server->data;
-//			if(status == 0 ) {
-//				PipeClient *client = new PipeClient(sink);
-//				int r;
-//				if((r = uv_accept(server, (uv_stream_t *)&client->client))==0) {
-//					ERROR_OUT("UnixDgramSink: Failed accept()\n", uv_strerror(uv_last_error(sink->loop)));
-//					delete sink;
-//				} else {
-//					if(uv_read_start((uv_stream_t *)&client->client,UnixDgramSink::alloc_cb, PipeClient::on_read)) {
-//
-//					}
-//				}
-//			} else {
-//				ERROR_OUT("Sink: on_new_conn: Error on status: %d\n",status);
-//			}
-//		}
 
 		static void listener_work(void *self) {
 			SyslogDgramSink *sink = (SyslogDgramSink *) self;
@@ -1357,6 +1330,10 @@ protected:
 								err_cnt++;
 							}
 						}
+
+						// TODO:
+						// use setsockopt SO_PASSCRED to get the actual calling PID through a recvmsg() as an aux message
+						// This way you can determine the process ID which can be mapped to the origin label
 
 						char header_temp[GREASE_CLIENT_HEADER_SIZE];
 						int header_temp_walk = 0;
