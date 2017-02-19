@@ -1621,6 +1621,11 @@ protected:
 							ERROR_PERROR("UnixDgramSink: Failed to bind() SOCK_DGRAM socket.\n", errno);
 							close(socket_fd);
 						} else {
+							// set permissions:
+							if(chmod(path, 0666) < 0) {
+								ERROR_PERROR("UnixDgramSink: could not set permissions to 0666\n",errno);
+							}
+
 							ready = true;
 						}
 					}
