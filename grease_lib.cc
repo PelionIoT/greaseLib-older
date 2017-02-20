@@ -93,10 +93,12 @@ bool libStarted = false;
 //}
 
 int observationCounter;
+uv_mutex_t runningLock;
 
 void libraryMain(void *arg) {
 	libStarted = true;
 // Callbacks will occur in this thread.
+	uv_mutex_lock(&runningLock);
 	uv_run(&libLoop, UV_RUN_DEFAULT);
 }
 
@@ -113,6 +115,7 @@ LIB_METHOD(start) {
 	uv_thread_create(&libThread, libraryMain, NULL);
 	// timer keeps uv_run up
 	uv_timer_init(&libLoop, &idleTimer);
+	uv_mutex_init(&runningLock);
 	uv_timer_start(&idleTimer, heartbeat, 5000, 2000);
 	GreaseLogger *l = GreaseLogger::setupClass(DEFAULT_BUFFER_SIZE,LOGGER_DEFAULT_CHUNK_SIZE,&libLoop);
 	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
@@ -132,9 +135,15 @@ LIB_METHOD(shutdown) {
 		printf("got shutdown");
 		uv_timer_stop(&idleTimer);
 		uv_loop_close(&libLoop);
-//		uv_timer_stop(&libMainTimer);
+		uv_mutex_unlock(&runningLock);
+		//		uv_timer_stop(&libMainTimer);
 	}
 	return GREASE_LIB_OK;
+}
+
+void GreaseLib_waitOnGreaseShutdown() {
+	uv_mutex_lock(&runningLock);
+	uv_mutex_unlock(&runningLock);
 }
 
 

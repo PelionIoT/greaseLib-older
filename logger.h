@@ -1391,7 +1391,7 @@ protected:
 									sink->owner->logP(&meta_syslog,cap_msg.c_str(),cap_msg.length());
 								} else {
 
-									DBG_OUT("NO MATCH");
+									DBG_OUT("NO MATCH @ RE2 for syslog input");
 									// regex did not match. - just log the whole message
 									sink->owner->logP(&meta_syslog,(char *) iov[iov_n].iov_base,iov[iov_n].iov_len);
 

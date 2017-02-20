@@ -63,6 +63,7 @@ typedef struct {
 LIB_METHOD(setGlobalOpts, GreaseLibOpts *opts);
 LIB_METHOD(start);
 LIB_METHOD(shutdown);
+void GreaseLib_waitOnGreaseShutdown();
 LIB_METHOD_SYNC(addTagLabel, uint32_t val, const char *utf8, int len);
 LIB_METHOD_SYNC(addOriginLabel, uint32_t val, const char *utf8, int len);
 LIB_METHOD_SYNC(addLevelLabel, uint32_t val, const char *utf8, int len);

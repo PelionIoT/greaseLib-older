@@ -122,11 +122,13 @@ int main() {
 
 
 	printf("Will shutdown in %d seconds\n",WAITSECS);
-	sleep(WAITSECS);
 
-	printf("sleep over\n");
-
-	GreaseLib_shutdown(NULL);
+	GreaseLib_waitOnGreaseShutdown();
+	//	sleep(WAITSECS);
+//
+//	printf("sleep over\n");
+//
+//	GreaseLib_shutdown(NULL);
 
 }
 ;
