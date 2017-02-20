@@ -209,7 +209,7 @@ extern GREASE_META_ISCONST logMeta __meta_trace;
 #include "grease_common_tags.h"
 
 #ifndef GLOG_DEFAULT_TAG
-#define GLOG_DEFAULT_TAG GREASE_TAG_NATIVE
+#define GLOG_DEFAULT_TAG GREASE_NATIVE_TAG
 #endif
 
 extern OriginId _grease_get_default_origin(void);

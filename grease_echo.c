@@ -16,7 +16,7 @@
 //#define GREASE_DEBUG_MODE 1
 #include "grease_common_tags.h"
 #define GREASE_NO_DEFAULT_NATIVE_ORIGIN 1    // we dont need to specify an origin with this client
-#define GLOG_DEFAULT_TAG GREASE_TAG_ECHO
+#define GLOG_DEFAULT_TAG GREASE_ECHO_TAG
 #include "grease_client.h"
 
 #define ERROR_OUT(s,...) fprintf(stderr, "**ERROR** " s, ##__VA_ARGS__ )//#define ERROR_PERROR(s,...) fprintf(stderr, "*****ERROR***** " s, ##__VA_ARGS__ );
@@ -38,6 +38,8 @@ int main(int argc, char *argv[]) {
 	int n = 1;
 	char *socket_path = NULL;
 	int opt_n = 0;
+
+	DECL_LOG_META( echo_meta, GREASE_ECHO_TAG, GREASE_LEVEL_LOG, GREASE_GREASEECHO_ORIGIN );
 
 	if(argv[n][0] == '-' && argv[n][1] == '-') {
 		if(!strcmp(argv[1]+2,"help")) {
@@ -78,43 +80,53 @@ int main(int argc, char *argv[]) {
 
 		if(argc > opt_n+2 && argv[opt_n+2][0] != '\0') {
 			if(!strcmp(argv[n+1]+2,"info")) {
-				GLOG_INFO(argv[2]);
+				echo_meta.level = GREASE_LEVEL_INFO;
+				grease_printf(&echo_meta, argv[2] );
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"error")) {
-				GLOG_ERROR(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_ERROR;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"warn")) {
-				GLOG_WARN(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_WARN;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"success")) {
-				GLOG_SUCCESS(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_SUCCESS;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"debug")) {
-				GLOG_DEBUG(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_DEBUG;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"debug2")) {
-				GLOG_DEBUG2(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_DEBUG2;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"debug3")) {
-				GLOG_DEBUG3(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_DEBUG3;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"user1")) {
-				GLOG_USER1(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_USER1;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"user2")) {
-				GLOG_USER2(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_USER2;
+				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else {
 				fprintf(stderr,"grease_echo: Unknown LEVEL.\n");
-				GLOG(argv[opt_n+2]);
+				echo_meta.level = GREASE_LEVEL_LOG;
+				grease_printf(&echo_meta, argv[opt_n+2] );
 				bye(1);
 			}
 		}
@@ -124,7 +136,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr,"    Error: Grease not running.\n");
 	}
 	if(argv[opt_n+1][0] != '\0') {
-		GLOG(argv[opt_n+1]);
+		echo_meta.level = GREASE_LEVEL_LOG;
+		grease_printf(&echo_meta, argv[opt_n+1] );
 	}
 	bye(0);
 
