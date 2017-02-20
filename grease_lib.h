@@ -199,6 +199,8 @@ LIB_METHOD_SYNC(disableTarget, TargetId id);
 LIB_METHOD_SYNC(enableTarget, TargetId id);
 LIB_METHOD_SYNC(flush, TargetId id);
 
+extern const TagId GREASE_SYSLOGFAC_TO_TAG_MAP[22];
+
 #ifdef __cplusplus
 }
 #endif

@@ -35,6 +35,8 @@ using namespace v8;
 #include <sys/uio.h>
 #endif
 
+#include <syslog.h>  // for LOG_FAC and LOG_PRI macros
+
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -1029,7 +1031,7 @@ protected:
 
 	};
 
-	static constexpr char *re_capture_syslog = "^\\s*(?:\\<([0-9]*)\\>)?\\s*([a-zA-Z]{3}\\s+[0-9]{1,2}\\s+[0-9]{2}\\:[0-9]{2}\\:[0-9]{2})\\s+(.*)$";
+	static constexpr char *re_capture_syslog = "^\\s*(?:\\<([0-9]*)\\>)?\\s*([a-zA-Z]{3}\\s+[0-9]{1,2}\\s+[0-9]{2}\\:[0-9]{2}\\:[0-9]{2})\\s+([\\S\\s]*)$";
 
 	class SyslogDgramSink final : public Sink, virtual public heapBuf::heapBufManager  {
 	protected:
@@ -1234,7 +1236,6 @@ protected:
 		}
 
 
-
 		static void listener_work(void *self) {
 			SyslogDgramSink *sink = (SyslogDgramSink *) self;
 
@@ -1352,7 +1353,8 @@ protected:
 
 						// regex capture vars
 						std::string cap_date;
-						int cap_pid;
+						int fac_pri; // to understand this, visit MACROs in syslog.h
+						int fac, pri;
 						std::string cap_msg;
 						DECL_LOG_META(meta_syslog, GREASE_TAG_SYSLOG, GREASE_LEVEL_LOG, 0 ); // static meta struct we will use
 
@@ -1365,12 +1367,31 @@ protected:
 								*(buf+iov[iov_n].iov_len) = 0;
 								DBG_OUT("syslog in %d>> %s\n",iov_n, buf);
 #endif
-								if(RE2::FullMatch((char *) iov[iov_n].iov_base,re_dissect_syslog,&cap_pid,&cap_date,&cap_msg)) {
+								if(RE2::FullMatch((char *) iov[iov_n].iov_base,re_dissect_syslog,&fac_pri,&cap_date,&cap_msg)) {
 //									if(cap_date.length() > 3) {
 //										// we figure out the log time here, via strptime() - but honestly, its gonna be when it was sent - so don't bother
 //									}
+									pri = LOG_PRI(fac_pri);
+									if( pri < 8) {
+										meta_syslog.level = GREASE_SYSLOGPRI_TO_LEVEL_MAP[pri];
+									} else {
+										meta_syslog.level = GREASE_LEVEL_LOG;
+										DBG_OUT("out of bounds LOG_PRI ");
+									}
+									fac = LOG_FAC(fac_pri);
+//									DBG_OUT("fac_pri %d  %d\n",fac_pri,fac);
+									if( fac < sizeof(GREASE_SYSLOGFAC_TO_TAG_MAP)) {
+										meta_syslog.tag = GREASE_SYSLOGFAC_TO_TAG_MAP[fac];
+									} else {
+										meta_syslog.tag = GREASE_TAG_SYSLOG;
+										DBG_OUT("out of bounds LOG_FAC %d",fac);
+									}
+
+
 									sink->owner->logP(&meta_syslog,cap_msg.c_str(),cap_msg.length());
 								} else {
+
+									DBG_OUT("NO MATCH");
 									// regex did not match. - just log the whole message
 									sink->owner->logP(&meta_syslog,(char *) iov[iov_n].iov_base,iov[iov_n].iov_len);
 
@@ -1383,7 +1404,7 @@ protected:
 								iov_n++;
 
 							} else {
-								printf("syslog in %d ZERO length\n",iov_n );
+								DBG_OUT("syslog in %d ZERO length",iov_n );
 							}
 						}
 

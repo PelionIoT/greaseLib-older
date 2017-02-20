@@ -142,6 +142,18 @@ const uint32_t __grease_preamble = SINK_LOG_PREAMBLE;
 const uint32_t __grease_sink_ping = SINK_LOG_PING;
 const uint32_t __grease_sink_ping_ack = SINK_LOG_PING_ACK;
 
+// these map syslog 'priorities' (defined in syslog.h) to grease Levels
+const LevelMask GREASE_SYSLOGPRI_TO_LEVEL_MAP[8] = {
+GREASE_LEVEL_ERROR,  // #define	LOG_EMERG	0
+GREASE_LEVEL_ERROR,  // #define	LOG_ALERT	1
+GREASE_LEVEL_ERROR,  // #define	LOG_CRIT	2
+GREASE_LEVEL_ERROR,  // #define	LOG_ERR		3
+GREASE_LEVEL_WARN,   // #define	LOG_WARNING	4
+GREASE_LEVEL_WARN,   // #define	LOG_NOTICE	5
+GREASE_LEVEL_INFO,   // #define	LOG_INFO	6
+GREASE_LEVEL_DEBUG,  // #define	LOG_DEBUG	7
+};
+
 
 #define MODULE_SEARCH_NOT_RAN -1
 static int found_module = MODULE_SEARCH_NOT_RAN;

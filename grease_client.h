@@ -286,6 +286,8 @@ extern int grease_logLocal(logMeta *f, const char *s, RawLogLen len);
 extern int grease_getConnectivityMethod();
 
 
+extern const LevelMask GREASE_SYSLOGPRI_TO_LEVEL_MAP[8];
+
 #ifdef __cplusplus
 };
 #endif

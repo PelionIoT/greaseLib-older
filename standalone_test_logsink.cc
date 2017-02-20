@@ -57,7 +57,8 @@ void targetAddCB(GreaseLibError *err, void *d) {
 }
 
 const char *level_format = "%-10s ";
-
+const char *tag_format = " [%-15s] ";
+const char *origin_format = " (%-15s) ";
 const int WAITSECS = 90;
 
 int main() {
@@ -82,6 +83,10 @@ int main() {
 	target->file = outFile;
 	target->format_level = (char *) level_format;
 	target->format_level_len = strlen(level_format);
+	target->format_tag = (char *) tag_format;
+	target->format_tag_len = strlen(tag_format);
+	target->format_origin = (char *) origin_format;
+	target->format_origin_len = strlen(origin_format);
 
 	target->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
 	f1 = GreaseLib_new_GreaseLibFilter();
