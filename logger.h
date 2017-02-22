@@ -713,7 +713,7 @@ protected:
 	uv_mutex_t nextOptsIdMutex; // used for the 'optsId' which helps calling code track callbacks, on AddTarget
 	uint32_t nextOptsId;
 	FilterId nextFilterId;
-	TargetId nextTargetId;
+	TargetId nextTargetId ;
 	SinkId nextSinkId;
 
 
@@ -3605,7 +3605,7 @@ protected:
 	static void start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
 	static void start_logger_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
     GreaseLogger(int buffer_size = DEFAULT_BUFFER_SIZE, int chunk_size = LOGGER_DEFAULT_CHUNK_SIZE, uv_loop_t *userloop = NULL) :
-    	nextOptsId(0), nextFilterId(1), nextTargetId(1),
+    	nextOptsId(1), nextFilterId(1), nextTargetId(1),
     	Opts(),
 //    	bufferSize(buffer_size), chunkSize(chunk_size),
     	masterBufferAvail(PRIMARY_BUFFER_ENTRIES),
