@@ -453,6 +453,9 @@ void GreaseLib_set_string_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,
 
 }
 
+void GreaseLib_set_flag_GreaseLibTargetOpts(GreaseLibTargetOpts *opts,uint32_t flag) {
+	opts->flags |= flag;
+}
 
 
 LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts) {
@@ -478,7 +481,7 @@ LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts) {
 
 		// replaces existing default target with this one:
 		targ = new GreaseLogger::ttyTarget(size, DEFAULT_TARGET, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i);
-
+		targ->setFlag(opts->flags);
 	} else if(opts->file) {
 		i->cb = NULL;
 		i->targId = DEFAULT_TARGET;
@@ -515,14 +518,17 @@ LIB_METHOD_SYNC(modifyDefaultTarget,GreaseLibTargetOpts *opts) {
 
 			targ = new GreaseLogger::fileTarget(size, DEFAULT_TARGET, GreaseLogger::LOGGER, flags, mode, opts->file,
 					std::move(defaultdelim), i, GreaseLogger::targetReady, rotateOpts);
+			targ->setFlag(opts->flags);
 		} else {
 			targ = new GreaseLogger::fileTarget(size, DEFAULT_TARGET, GreaseLogger::LOGGER, flags, mode, opts->file,
 					std::move(defaultdelim), i, GreaseLogger::targetReady);
+			targ->setFlag(opts->flags);
 		}
 	} else {
 		if(opts->delim) {
 			targ->delim.setDelim(opts->delim,opts->len_delim);
 		}
+		targ->setFlag(opts->flags);
 	}
 
 	if(opts->targetCB) {
@@ -608,7 +614,7 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 
 		// replaces existing default target with this one:
 		targ = new GreaseLogger::ttyTarget(size, id, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i);
-
+		targ->setFlag(opts->flags);
 	} else if(opts->file) {
 		i->targId = id;
 
@@ -635,9 +641,11 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 
 			targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
 					std::move(defaultdelim), i, GreaseLogger::targetReady, rotateOpts);
+			targ->setFlag(opts->flags);
 		} else {
 			targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
 					std::move(defaultdelim), i, GreaseLogger::targetReady);
+			targ->setFlag(opts->flags);
 		}
 	} else {
 // 		callbackTarget(int buffer_size, uint32_t id, GreaseLogger *o,
@@ -647,7 +655,7 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 		i->targId = id;
 
 		targ = new GreaseLogger::callbackTarget(size,id, GreaseLogger::LOGGER, GreaseLogger::targetReady, std::move(defaultdelim), i);
-
+		targ->setFlag(opts->flags);
 		if(opts->delim) {
 			targ->delim.setDelim(opts->delim,opts->len_delim);
 		}

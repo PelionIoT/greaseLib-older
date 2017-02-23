@@ -95,8 +95,8 @@ typedef struct {
 typedef struct {
 	char *delim;             // points to delimetter UTF8, does not need NULL termination, NULL pointer will use default value
 	int len_delim;           // length of above buffer
-	char *delim_output;
-	int len_delim_output;
+//	char *delim_output;
+//	int len_delim_output;
 	char *tty;
 	char *file;
 	int optsId; // filled in automatically
@@ -116,6 +116,7 @@ typedef struct {
 	int format_post_len;
 	char *format_pre_msg;
 	int format_pre_msg_len;
+	uint32_t flags;
 } GreaseLibTargetOpts;
 
 typedef struct {
@@ -123,14 +124,19 @@ typedef struct {
 	TargetId targId;
 } GreaseLibStartedTargetInfo;
 
+// tell the target to JSON escape all strings handed to it
+#define GREASE_JSON_ESCAPE_STRINGS 0x00000001
 
 GreaseLibTargetFileOpts *GreaseLib_new_GreaseLibTargetFileOpts();
 GreaseLibTargetFileOpts *GreaseLib_init_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *);
 void GreaseLib_cleanup_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts);
 void GreaseLib_set_flag_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,uint32_t flag);
 
+
 GreaseLibTargetOpts *GreaseLib_new_GreaseLibTargetOpts();
 GreaseLibTargetOpts *GreaseLib_init_GreaseLibTargetOpts(GreaseLibTargetOpts *);
+void GreaseLib_set_flag_GreaseLibTargetOpts(GreaseLibTargetOpts *opts,uint32_t flag);
+
 void GreaseLib_cleanup_GreaseLibTargetOpts(GreaseLibTargetOpts *opts);
 void GreaseLib_set_string_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *opts,uint32_t flag,const char *s);
 

@@ -29,7 +29,7 @@ void targetCallback(GreaseLibError *err, void *d) {
 		*(buf->data+buf->size+1) = '\0';
 		printf("CALLBACK TARGET>>>>>>>>>%s<<<<<<<<<<<<<<<<\n",output_buf);
 	} else {
-		printf("OOOPS. Overflow on test output. size was %d\n",buf->size);
+		printf("OOOPS. Overflow on test output. size was %lu\n",buf->size);
 	}
 	GreaseLib_cleanup_GreaseLibBuf(buf);
 }
@@ -101,7 +101,7 @@ int main() {
 //	target2->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
 	target2->optsId = CALLBACK_TARG_OPTID;
 	target2->targetCB = targetCallback;
-
+	GreaseLib_set_flag_GreaseLibTargetOpts(target2,GREASE_JSON_ESCAPE_STRINGS);
 	GreaseLib_addTarget(targetAddCB, target2);
 
 	int ret;

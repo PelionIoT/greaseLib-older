@@ -566,7 +566,7 @@ GreaseLogger::logTarget::logTarget(int buffer_size, uint32_t id, GreaseLogger *o
 		writeOutBuffers(NUM_BANKS-1), // there should always be one buffer available for writingTo
 		waitingOnCBBuffers(NUM_BANKS-1),
 		err(), _log_fd(0),
-		currentBuffer(NULL), bankSize(buffer_size), owner(o), myId(id),
+		currentBuffer(NULL), bankSize(buffer_size), owner(o), myId(id), flags(0),
 		timeFormat(),tagFormat(),originFormat(),levelFormat(),preFormat(),postFormat(),preMsgFormat()
 {
 	uv_mutex_init(&writeMutex);

@@ -77,6 +77,7 @@ using namespace v8;
 #define LFREE tc_free
 
 extern "C" char *local_strdup_safe(const char *s);
+extern "C" int memcpy_and_json_escape(char *out, const char *in, int in_len, int *out_len);
 
 namespace Grease {
 
@@ -275,6 +276,7 @@ public:
 			handle.base = (char *) LMALLOC(handle.len);
 			used = 0;
 		}
+
 		int memcpy(const char *s, size_t l,const char *append_str=nullptr) {
 			if(handle.base) {
 				if(append_str) {
@@ -293,6 +295,33 @@ public:
 					if(l > handle.len) l = (int) handle.len;
 					::memcpy(handle.base,s,l);
 					used = l;
+					return l;
+				}
+			} else
+				return 0;
+		}
+		int memcpyJsonEscape(const char *s, size_t l,const char *append_str=nullptr) {
+			if(handle.base) {
+				if(append_str) {
+					bool append = false;
+					int app_len = 0;
+					if(l > handle.len) {
+						app_len = strlen(append_str);
+						l = (int) handle.len-app_len;
+						append = true;
+						::memcpy((char*)handle.base+l,append_str,app_len);
+					}
+					int out_len = handle.len;
+					memcpy_and_json_escape(handle.base, s, l, &out_len);
+					//					::memcpy(handle.base,s,l);
+					used = l + app_len;
+					return l;
+				} else {
+					if(l > handle.len) l = (int) handle.len;
+//					::memcpy(handle.base,s,l);
+					int out_len = handle.len;
+					memcpy_and_json_escape(handle.base, s, l, &out_len);
+					used = out_len;
 					return l;
 				}
 			} else
@@ -345,6 +374,9 @@ public:
 	private:
 		int _ref_cnt;
 	protected:
+		singleLog(int len, const logMeta &m) : _ref_cnt(NOT_REFED), meta(), buf(len) {
+			meta.m = m;
+		}
 	public:
 		extra_logMeta meta;
 		heapBuf buf;
@@ -357,6 +389,12 @@ public:
 			ZERO_LOGMETA(meta.m);
 		}
 		singleLog() = delete;
+		static singleLog *newSingleLogAsJsonEscape(const char *d, int l, const logMeta &m) {
+			singleLog *ret = new singleLog(l*2,m);
+			ret->buf.memcpyJsonEscape(d,l);
+			return ret;
+		}
+
 		static singleLog *heapSingleLog(int len) {
 			singleLog *ret = new singleLog(len);
 			ret->_ref_cnt = INIT_REF;
@@ -1975,6 +2013,22 @@ protected:
 				uv_mutex_unlock(&mutex);
 			}
 		}
+		void copyInJsonEscape(const char *s, int n, bool use_delim) {
+			if(n > 0) {
+				uv_mutex_lock(&mutex);
+				assert(n <= space);
+				assert(handle.len <= space);
+				//int memcpy_and_json_escape(char *out, char *in, int in_len, int *out_len)
+				int out_len = space;
+				memcpy_and_json_escape((handle.base + handle.len), s, n, &out_len);
+				handle.len += out_len;
+				if(!delim.delim.empty() && use_delim) {
+					::memcpy((void *) (handle.base + handle.len), delim.delim.handle.base, delim.delim.handle.len);
+					handle.len += delim.delim.handle.len;
+				}
+				uv_mutex_unlock(&mutex);
+			}
+		}
 		void clear() {
 			uv_mutex_lock(&mutex);
 			handle.len = 0;
@@ -2120,6 +2174,7 @@ protected:
 	protected:
 		bool _disabled;
 	public:
+		const uint32_t JSON_ESCAPE_STRINGS = GREASE_JSON_ESCAPE_STRINGS;
 		typedef void (*targetReadyCB)(bool ready, _errcmn::err_ev &err, logTarget *t);
 		targetReadyCB readyCB;
 		target_start_info *readyData;
@@ -2152,6 +2207,7 @@ protected:
 		int bankSize;
 		GreaseLogger *owner;
 		uint32_t myId;
+		uint32_t flags;
 
 		bool isDisableWrites() {
 			bool ret = false;
@@ -2166,6 +2222,11 @@ protected:
 			_disabled = v;
 			uv_mutex_unlock(&writeMutex);
 		}
+
+		void setFlag(uint32_t flag) {
+			flags |= flag;
+		}
+
 
 		logTarget(int buffer_size, uint32_t id, GreaseLogger *o,
 				targetReadyCB cb, delim_data _delim, target_start_info *readydata);
@@ -2489,7 +2550,11 @@ protected:
 
 			// its huge. do an overflow request now, and move on.
 			if(bankSize < (len+GREASE_MAX_PREFIX_HEADER)) {
-				singleLog *B = new singleLog(s,len,m);
+				singleLog *B = NULL;
+				if(flags & JSON_ESCAPE_STRINGS)
+					B = singleLog::newSingleLogAsJsonEscape(s,len,m);
+				else
+					B = new singleLog(s,len,m);
 				internalCmdReq req(WRITE_TARGET_OVERFLOW,myId);
 				req.aux = B;
 				if(owner->internalCmdQueue.addMvIfRoom(req))
@@ -2514,7 +2579,10 @@ protected:
 					owner->refGreaseInGrease();
 				uv_mutex_lock(&writeMutex);
 				currentBuffer->copyIn(header_buffer,len_header_buffer, false); // false means skip delimiter
-				currentBuffer->copyIn(s,len,no_footer);
+				if(flags & JSON_ESCAPE_STRINGS)
+					currentBuffer->copyInJsonEscape(s,len,no_footer); // false means skip delimiter
+				else
+					currentBuffer->copyIn(s,len,no_footer);
 				if(!no_footer)
 					currentBuffer->copyIn(footer_buffer,len_footer_buffer);
 				uv_mutex_unlock(&writeMutex);
@@ -2528,7 +2596,10 @@ protected:
 						uv_mutex_lock(&writeMutex);
 						owner->refGreaseInGrease(); // new buffer for use, do the ref
 						currentBuffer->copyIn(header_buffer,len_header_buffer, false);
-						currentBuffer->copyIn(s,len,no_footer);
+						if(flags & JSON_ESCAPE_STRINGS)
+							currentBuffer->copyInJsonEscape(s,len,no_footer); // false means skip delimiter
+						else
+							currentBuffer->copyIn(s,len,no_footer);
 						if(!no_footer)
 							currentBuffer->copyIn(footer_buffer,len_footer_buffer);
 						id = currentBuffer->id;
