@@ -17,11 +17,11 @@ SYSCALLS= syscalls-$(ARCH).c
 
 ALLOBJS= $($<:%.cpp=%.o)
 
-DEBUG_OPTIONS=-rdynamic -D_TW_TASK_DEBUG_THREADS_ -DLOGGER_HEAVY_DEBUG
+DEBUG_OPTIONS=-rdynamic -D_TW_TASK_DEBUG_THREADS_ -DLOGGER_HEAVY_DEBUG  -D__DEBUG -D_TW_DEBUG 
 #-D_TW_BUFBLK_DEBUG_STACK_
-CFLAGS= $(DEBUG_OPTIONS) $(GLIBCFLAG) -D_TW_DEBUG -I./include  -D__DEBUG   -fPIC -I./deps/$(LIBUVDIR)/include -I./deps/build/include  -L./deps/build/lib -DGREASE_LIB
+CFLAGS= $(GLIBCFLAG) -I./include   -fPIC -I./deps/$(LIBUVDIR)/include -I./deps/build/include  -L./deps/build/lib -DGREASE_LIB
 
-DEBUG_CFLAGS= -g -DERRCMN_DEBUG_BUILD
+DEBUG_CFLAGS= -g -DERRCMN_DEBUG_BUILD $(DEBUG_OPTIONS)
 
 ROOT_DIR=.
 OUTPUT_DIR=.
@@ -30,7 +30,7 @@ OUTPUT_DIR=.
 
 EXTRA_TARGET=
 
-CFLAGS+= -fPIC $(DEBUG_CFLAGS)
+CFLAGS+= -fPIC
 
 GLIBCFLAG=-D_USING_GLIBC_
 LD_TEST_FLAGS= -lgtest
@@ -60,12 +60,16 @@ OBJS_NAMES= $(SRCS_CPP:%.cc=$%.o) $(SRCS_C:%.c=%.o)
 ## overwritten. That's not bad, however, because we have a static 
 ## library that already contains the needed object file.
 
+
+ifdef DEBUG
+CFLAGS += $(DEBUG_CFLAGS)
+endif
+
 $(OUTPUT_DIR)/%.o: %.cc
 	$(CXX) $(CXXFLAGS) $(CFLAGS) -c $< -o $@
 
 $(OUTPUT_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
-
 
 
 libgrease.so.1: CFLAGS += -shared -Wl,-soname,libgrease.so.1	
