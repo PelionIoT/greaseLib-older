@@ -2183,7 +2183,7 @@ protected:
 #ifndef GREASE_LIB
 		Nan::Callback *logCallback;
 #else
-		GreaseLibCallback logCallback;
+		GreaseLibTargetCallback logCallback;
 #endif
 		delim_data delim;
 
@@ -2489,7 +2489,7 @@ protected:
 			uv_mutex_unlock(&writeMutex);
 		}
 #else
-		void setCallback(GreaseLibCallback cb) {
+		void setCallback(GreaseLibTargetCallback cb) {
 			uv_mutex_lock(&writeMutex);
 			if(cb) {
 				logCallbackSet = true;

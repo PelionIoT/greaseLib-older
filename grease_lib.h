@@ -40,6 +40,7 @@ typedef struct {
 } GreaseLibError;
 
 typedef void (*GreaseLibCallback) (GreaseLibError *, void *);
+typedef void (*GreaseLibTargetCallback) (GreaseLibError *, void *, uint32_t targId);
 
 typedef struct {
 	char *data;
@@ -100,7 +101,7 @@ typedef struct {
 	char *tty;
 	char *file;
 	int optsId; // filled in automatically
-	GreaseLibCallback targetCB; // used if this is target is a callback
+	GreaseLibTargetCallback targetCB; // used if this is target is a callback
 	GreaseLibTargetFileOpts *fileOpts; // NULL if not needed
 	char *format_pre;
 	int format_pre_len;

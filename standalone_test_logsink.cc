@@ -19,12 +19,12 @@ void filterAddCB(GreaseLibError *err, void *d) {
 	}
 }
 
-char output_buf[1024];
+char output_buf[5128];
 
-void targetCallback(GreaseLibError *err, void *d) {
-	printf("**** in targetCallback\n");
+void targetCallback(GreaseLibError *err, void *d, uint32_t targetId) {
+	printf("**** in targetCallback - targId %d\n", targetId);
 	GreaseLibBuf *buf = (GreaseLibBuf *)d;
-	if(buf->size < 1023) {
+	if(buf->size < 5127) {
 		memcpy(output_buf,buf->data,buf->size);
 		*(buf->data+buf->size+1) = '\0';
 		printf("CALLBACK TARGET>>>>>>>>>%s<<<<<<<<<<<<<<<<\n",output_buf);

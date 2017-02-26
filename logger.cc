@@ -839,7 +839,7 @@ void GreaseLogger::_doLibCallback(GreaseLogger::logTarget::writeCBData &data) {
 		GreaseLib_init_GreaseLibBuf(&buf);
 		buf.data = data.b->handle.base;
 		buf.size = data.b->handle.len;
-		data.t->logCallback(NULL,&buf);
+		data.t->logCallback(NULL,&buf,data.t->myId);
 //		data.t->logCallback->Call(1,argv);
 //		} else {
 //			ERROR_OUT("Memory: Could not convert for log target's callback (1)");
@@ -856,7 +856,7 @@ void GreaseLogger::_doLibCallback(GreaseLogger::logTarget::writeCBData &data) {
 //			if(s.ToLocal(&sconv)) {
 //				argv[0] = sconv;
 //				argv[1] = Nan::New( data.t->myId );
-			data.t->logCallback(NULL,buf);
+			data.t->logCallback(NULL,buf, data.t->myId);
 //			} else {
 //				ERROR_OUT("Memory: Could not convert for log target's callback (2)");
 //			}
