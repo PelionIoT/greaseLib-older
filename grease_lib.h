@@ -117,7 +117,7 @@ typedef struct {
 	int format_post_len;
 	char *format_pre_msg;
 	int format_pre_msg_len;
-	int num_banks; // number of buffer banks the target has. The default is NUM_BANKS defined in logger.h
+	uint32_t num_banks; // number of buffer banks the target has. The default is NUM_BANKS defined in logger.h
 	uint32_t flags;
 } GreaseLibTargetOpts;
 

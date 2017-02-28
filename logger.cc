@@ -555,7 +555,7 @@ GreaseLogger::logTarget::~logTarget() {
 }
 
 GreaseLogger::logTarget::logTarget(int buffer_size, uint32_t id, GreaseLogger *o,
-		targetReadyCB cb, delim_data _delim, target_start_info *readydata, int num_banks) :
+		targetReadyCB cb, delim_data _delim, target_start_info *readydata, uint32_t num_banks) :
 		_disabled(false),
 		readyCB(cb),                  // called when the target is ready or has failed to setup
 		readyData(readydata),
