@@ -175,7 +175,7 @@ struct uint64_t_eqstrP {
 
 // use these to fix "NO BUFFERS" ... greaseLog will never block if it's IO can't keep up with logging
 // and instead will drop log info
-#define NUM_BANKS 4
+#define NUM_BANKS 4  // default number of banks in a logTarget
 #define LOGGER_DEFAULT_CHUNK_SIZE  1500
 #define DEFAULT_BUFFER_SIZE  2000
 
@@ -2178,7 +2178,8 @@ protected:
 		typedef void (*targetReadyCB)(bool ready, _errcmn::err_ev &err, logTarget *t);
 		targetReadyCB readyCB;
 		target_start_info *readyData;
-		logBuf *_buffers[NUM_BANKS];
+//		logBuf *_buffers[NUM_BANKS];
+		logBuf **_buffers;
 		bool logCallbackSet; // if true, logCallback (below) is set (we prefer to not touch any v8 stuff, when outside the v8 thread)
 #ifndef GREASE_LIB
 		Nan::Callback *logCallback;
@@ -2186,7 +2187,7 @@ protected:
 		GreaseLibTargetCallback logCallback;
 #endif
 		delim_data delim;
-
+		int numBanks;
 
 		// Queue flow:
 		// 1) un-used logBuf taken out of availBuffers, filled with data
@@ -2229,7 +2230,7 @@ protected:
 
 
 		logTarget(int buffer_size, uint32_t id, GreaseLogger *o,
-				targetReadyCB cb, delim_data _delim, target_start_info *readydata);
+				targetReadyCB cb, delim_data _delim, target_start_info *readydata, int num_banks = NUM_BANKS);
 		logTarget() = delete;
 
 		logLabel timeFormat;
@@ -2765,8 +2766,8 @@ protected:
 			buf.len = l;
 			uv_write(req, (uv_stream_t *) &tty, &buf, 1, NULL);
 		}
-		ttyTarget(int buffer_size, uint32_t id, GreaseLogger *o, targetReadyCB cb, delim_data _delim, target_start_info *readydata = NULL,  char *ttypath = NULL)
-		   : logTarget(buffer_size, id, o, cb, std::move(_delim), readydata), ttyFD(0)  {
+		ttyTarget(int buffer_size, uint32_t id, GreaseLogger *o, targetReadyCB cb, delim_data _delim, target_start_info *readydata = NULL,  char *ttypath = NULL, int num_banks = NUM_BANKS)
+		   : logTarget(buffer_size, id, o, cb, std::move(_delim), readydata, num_banks), ttyFD(0)  {
 			_errcmn::err_ev err;
 
 			if(ttypath) {
@@ -3365,15 +3366,15 @@ protected:
 
 	public:
 		fileTarget(int buffer_size, uint32_t id, GreaseLogger *o, int flags, int mode, char *path, delim_data _delim, target_start_info *readydata, targetReadyCB cb,
-				rotationOpts rotateopts) :
-				logTarget(buffer_size, id, o, cb, std::move(_delim), readydata),
+				rotationOpts rotateopts, int num_banks = NUM_BANKS) :
+				logTarget(buffer_size, id, o, cb, std::move(_delim), readydata, num_banks),
 				submittedWrites(0), rotatedFiles(MAX_ROTATED_FILES,true), current_size(0), all_files_size(0),
 				myPath(NULL), myMode(mode), myFlags(flags), filerotation(rotateopts), sync_n(0) {
 			post_cstor(buffer_size, id, o, flags, mode, path, readydata, cb);
 		}
 
-		fileTarget(int buffer_size, uint32_t id, GreaseLogger *o, int flags, int mode, char *path, delim_data _delim, target_start_info *readydata, targetReadyCB cb) :
-			logTarget(buffer_size, id, o, cb, std::move(_delim), readydata),
+		fileTarget(int buffer_size, uint32_t id, GreaseLogger *o, int flags, int mode, char *path, delim_data _delim, target_start_info *readydata, targetReadyCB cb, int num_banks = NUM_BANKS) :
+			logTarget(buffer_size, id, o, cb, std::move(_delim), readydata, num_banks),
 			submittedWrites(0), rotatedFiles(MAX_ROTATED_FILES,true), current_size(0), all_files_size(0),
 			myPath(NULL), myMode(mode), myFlags(flags), filerotation(), sync_n(0) {
 			post_cstor(buffer_size, id, o, flags, mode, path, readydata, cb);
@@ -3387,8 +3388,8 @@ protected:
 	class callbackTarget final : public logTarget {
 	public:
 		callbackTarget(int buffer_size, uint32_t id, GreaseLogger *o,
-				targetReadyCB cb, delim_data _delim, target_start_info *readydata) :
-					logTarget(buffer_size, id, o, cb, std::move(_delim), readydata)
+				targetReadyCB cb, delim_data _delim, target_start_info *readydata, int num_banks = NUM_BANKS) :
+					logTarget(buffer_size, id, o, cb, std::move(_delim), readydata, num_banks)
 	{
 			_errcmn::err_ev err;
 			if(cb) cb(true,err,this);

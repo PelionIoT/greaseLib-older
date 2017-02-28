@@ -101,6 +101,7 @@ int main() {
 //	target2->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
 	target2->optsId = CALLBACK_TARG_OPTID;
 	target2->targetCB = targetCallback;
+	target2->num_banks = 10; // default is 4, let's make it
 	GreaseLib_set_flag_GreaseLibTargetOpts(target2,GREASE_JSON_ESCAPE_STRINGS);
 	GreaseLib_addTarget(targetAddCB, target2);
 

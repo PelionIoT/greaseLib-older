@@ -613,7 +613,10 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 		i->targId = id;
 
 		// replaces existing default target with this one:
-		targ = new GreaseLogger::ttyTarget(size, id, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i);
+		if(opts->num_banks > 0)
+			targ = new GreaseLogger::ttyTarget(size, id, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i, NULL, opts->num_banks);
+		else
+			targ = new GreaseLogger::ttyTarget(size, id, GreaseLogger::LOGGER, GreaseLogger::targetReady,std::move(defaultdelim), i);
 		targ->setFlag(opts->flags);
 	} else if(opts->file) {
 		i->targId = id;
@@ -639,12 +642,20 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 				if(opts->fileOpts->_enabledFlags & GREASE_LIB_SET_FILEOPTS_ROTATEONSTART) rotateOpts.rotate_on_start = true;
 			}
 
-			targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
-					std::move(defaultdelim), i, GreaseLogger::targetReady, rotateOpts);
+			if(opts->num_banks > 0)
+				targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
+						std::move(defaultdelim), i, GreaseLogger::targetReady, rotateOpts, opts->num_banks);
+			else
+				targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
+						std::move(defaultdelim), i, GreaseLogger::targetReady, rotateOpts);
 			targ->setFlag(opts->flags);
 		} else {
-			targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
-					std::move(defaultdelim), i, GreaseLogger::targetReady);
+			if(opts->num_banks > 0)
+				targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
+						std::move(defaultdelim), i, GreaseLogger::targetReady, opts->num_banks);
+			else
+				targ = new GreaseLogger::fileTarget(size, id, GreaseLogger::LOGGER, flags, mode, opts->file,
+						std::move(defaultdelim), i, GreaseLogger::targetReady);
 			targ->setFlag(opts->flags);
 		}
 	} else {
@@ -654,7 +665,10 @@ LIB_METHOD(addTarget,GreaseLibTargetOpts *opts) {
 
 		i->targId = id;
 
-		targ = new GreaseLogger::callbackTarget(size,id, GreaseLogger::LOGGER, GreaseLogger::targetReady, std::move(defaultdelim), i);
+		if(opts->num_banks > 0)
+			targ = new GreaseLogger::callbackTarget(size,id, GreaseLogger::LOGGER, GreaseLogger::targetReady, std::move(defaultdelim), i, opts->num_banks);
+		else
+			targ = new GreaseLogger::callbackTarget(size,id, GreaseLogger::LOGGER, GreaseLogger::targetReady, std::move(defaultdelim), i);
 		targ->setFlag(opts->flags);
 		if(opts->delim) {
 			targ->delim.setDelim(opts->delim,opts->len_delim);

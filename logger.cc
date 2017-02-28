@@ -551,29 +551,32 @@ void GreaseLogger::flushAllSync(bool rotate, bool nocallbacks) { // flushes buff
 }
 
 GreaseLogger::logTarget::~logTarget() {
-
+	LFREE(_buffers);
 }
 
 GreaseLogger::logTarget::logTarget(int buffer_size, uint32_t id, GreaseLogger *o,
-		targetReadyCB cb, delim_data _delim, target_start_info *readydata) :
+		targetReadyCB cb, delim_data _delim, target_start_info *readydata, int num_banks) :
 		_disabled(false),
 		readyCB(cb),                  // called when the target is ready or has failed to setup
 		readyData(readydata),
+		_buffers(NULL),
 		logCallbackSet(false),
 		logCallback(NULL),
 		delim(std::move(_delim)),
-		availBuffers(NUM_BANKS),
-		writeOutBuffers(NUM_BANKS-1), // there should always be one buffer available for writingTo
-		waitingOnCBBuffers(NUM_BANKS-1),
+		numBanks(num_banks),
+		availBuffers(num_banks),
+		writeOutBuffers(num_banks-1), // there should always be one buffer available for writingTo
+		waitingOnCBBuffers(num_banks-1),
 		err(), _log_fd(0),
 		currentBuffer(NULL), bankSize(buffer_size), owner(o), myId(id), flags(0),
 		timeFormat(),tagFormat(),originFormat(),levelFormat(),preFormat(),postFormat(),preMsgFormat()
 {
 	uv_mutex_init(&writeMutex);
-	for (int n=0;n<NUM_BANKS;n++) {
+	_buffers = (logBuf **) LMALLOC(sizeof(logBuf *)*numBanks);
+	for (int n=0;n<numBanks;n++) {
 		_buffers[n] = new logBuf(bankSize,n,delim.duplicate());
 	}
-	for (int n=1;n<NUM_BANKS;n++) {
+	for (int n=1;n<numBanks;n++) {
 		availBuffers.add(_buffers[n]);
 	}
 	currentBuffer = _buffers[0];
