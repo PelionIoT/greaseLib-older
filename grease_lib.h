@@ -59,6 +59,7 @@ typedef struct {
 	GREASE_BOOL defaultFilterOut;
 	GREASE_BOOL show_filters;
 	GREASE_BOOL callback_errors;
+	GREASE_BOOL show_errors;
 } GreaseLibOpts;
 
 LIB_METHOD(setGlobalOpts, GreaseLibOpts *opts);

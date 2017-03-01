@@ -196,6 +196,10 @@ LIB_METHOD(setGlobalOpts, GreaseLibOpts *opts) {
 	if(opts) {
 		GreaseLogger *l = GreaseLogger::setupClass();
 		l->Opts.levelFilterOutMask = opts->LevelFilterOut;
+		l->Opts.show_errors = opts->show_errors;
+#ifdef ERRCMN_DEBUG_BUILD
+		l->Opts.show_errors = true; // errors always on if debug build
+#endif
 		uv_mutex_lock(&l->modifyFilters);
 		l->Opts.defaultFilterOut = opts->defaultFilterOut;
 		uv_mutex_unlock(&l->modifyFilters);
