@@ -31,6 +31,7 @@ void targetCallback(GreaseLibError *err, void *d, uint32_t targetId) {
 	} else {
 		printf("OOOPS. Overflow on test output. size was %lu\n",buf->size);
 	}
+//	sleep(1);
 	GreaseLib_cleanup_GreaseLibBuf(buf);
 }
 

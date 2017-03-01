@@ -43,7 +43,7 @@ typedef void (*GreaseLibTargetCallback) (GreaseLibError *, void *, uint32_t targ
 
 typedef struct {
 	char *data;
-	size_t size;
+	uint64_t size;
 	int own;    // if > 0 then cleanup call will free this memory
 	int _id; // used internally (sometimes) - should not be changed
 	void *_shadow; // this is the original C++ GreaseLogger::lohBuf object, which we can't have a proper point to - so we just do this
