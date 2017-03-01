@@ -38,7 +38,6 @@ typedef struct {
 	char errstr[GREASE_LIB_MAX_ERR_STRING];
 	int _errno;
 } GreaseLibError;
-
 typedef void (*GreaseLibCallback) (GreaseLibError *, void *);
 typedef void (*GreaseLibTargetCallback) (GreaseLibError *, void *, uint32_t targId);
 
@@ -46,12 +45,13 @@ typedef struct {
 	char *data;
 	size_t size;
 	int own;    // if > 0 then cleanup call will free this memory
+	int _id; // used internally (sometimes) - should not be changed
+	void *_shadow; // this is the original C++ GreaseLogger::lohBuf object, which we can't have a proper point to - so we just do this
 } GreaseLibBuf;
 
 void GreaseLib_init_GreaseLibBuf(GreaseLibBuf *b);
 GreaseLibBuf *GreaseLib_new_GreaseLibBuf(size_t l);
-void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b);
-
+void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b); // should be called when the callback is done using the buffer it was handed
 
 #define GREASE_BOOL int
 typedef struct {

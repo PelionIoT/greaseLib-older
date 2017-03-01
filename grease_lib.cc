@@ -16,14 +16,14 @@
 
 using namespace Grease;
 
-static int nextTargetOptsId = 0;
-
 
 void GreaseLib_init_GreaseLibBuf(GreaseLibBuf *b)
 {
 	b->data = NULL;
 	b->size = 0;
 	b->own = 0;
+	b->_id = -1;
+	b->_shadow = NULL;
 }
 
 GreaseLibBuf *GreaseLib_new_GreaseLibBuf(size_t size) {
@@ -35,10 +35,16 @@ GreaseLibBuf *GreaseLib_new_GreaseLibBuf(size_t size) {
 }
 
 void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b) {
-	if(b && b->own > 0) {
-		LFREE(b);
+	if(b->_id > -1) {
+		GreaseLogger *l = GreaseLogger::setupClass();
+		l->returnBufferToTarget(b);
+	} else {
+		if(b && b->own > 0) {
+			LFREE(b);
+		}
 	}
 }
+
 
 uv_thread_t libThread;
 uv_loop_t libLoop;

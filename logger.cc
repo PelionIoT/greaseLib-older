@@ -831,6 +831,19 @@ void GreaseLogger::callTargetCallback(uv_async_t *h) {
 	uv_unref((uv_handle_t *)&l->asyncTargetCallback);  // don't hold up event loop for this call back queue
 }
 
+
+void GreaseLogger::returnBufferToTarget(GreaseLibBuf *buf) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+
+	TargetId id = (TargetId) buf->_id;
+	GreaseLogger::logTarget *t;
+	if(l->targets.find(id, t)) {
+		logBuf *orig = (logBuf *) buf->_shadow;
+		DBG_OUT("   ----Returning buffer to target----");
+		t->finalizeV8Callback(orig);
+	}
+}
+
 void GreaseLogger::_doLibCallback(GreaseLogger::logTarget::writeCBData &data) {
 	if(data.b) {
 //		Nan::MaybeLocal<String> s = Nan::New( data.b->handle.base, (int) data.b->handle.len );
@@ -842,12 +855,12 @@ void GreaseLogger::_doLibCallback(GreaseLogger::logTarget::writeCBData &data) {
 		GreaseLib_init_GreaseLibBuf(&buf);
 		buf.data = data.b->handle.base;
 		buf.size = data.b->handle.len;
+		buf._id = (int) data.t->myId;
+		buf._shadow = data.b; // hide the original object here in void *
 		data.t->logCallback(NULL,&buf,data.t->myId);
-//		data.t->logCallback->Call(1,argv);
-//		} else {
-//			ERROR_OUT("Memory: Could not convert for log target's callback (1)");
-//		}
-		data.t->finalizeV8Callback(data.b);
+
+// Below replaced, see returnBufferToTarget() above
+//		data.t->finalizeV8Callback(data.b);
 	} else if(data.overflow) {
 		int l = data.overflow->totalSize();
 //		char *d = (char *) LMALLOC(l);

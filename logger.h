@@ -3663,6 +3663,7 @@ protected:
 	LIB_METHOD_SYNC_FRIEND(flush, TargetId id);
 	friend GreaseLibTargetOpts* ::GreaseLib_new_GreaseLibTargetOpts(void);
 	friend GreaseLibTargetOpts* ::GreaseLib_init_GreaseLibTargetOpts(GreaseLibTargetOpts *);
+	friend void ::GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b);
 #endif
 
 
@@ -3673,6 +3674,7 @@ protected:
 	static void _doV8Callback(GreaseLogger::logTarget::writeCBData &data); // <--- only call this one from v8 thread!
 #else
 	static void _doLibCallback(GreaseLogger::logTarget::writeCBData &data); // <--- only call this one from v8 thread!
+	static void returnBufferToTarget(GreaseLibBuf *buf);
 #endif
 	static void start_target_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
 	static void start_logger_cb(GreaseLogger *l, _errcmn::err_ev &err, void *d);
