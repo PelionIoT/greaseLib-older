@@ -2466,6 +2466,7 @@ protected:
 				cbdat.t = this;
 				cbdat.overflow = b;
 				if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
+					DBG_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 					if(owner->Opts.show_errors)
 						ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 				}

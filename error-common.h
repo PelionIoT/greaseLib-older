@@ -144,15 +144,15 @@ extern int __xpg_strerror_r (int __errnum, char *__buf, size_t __buflen);
 #ifdef ERRCMN_DEBUG_BUILD
 #pragma message "Build is Debug"
 // confused? here: https://gcc.gnu.org/onlinedocs/cpp/Variadic-Macros.html
-#define ERROR_OUT(s,...) fprintf(stderr, "**ERROR** " s "\n", ##__VA_ARGS__ )
+#define ERROR_OUT(s,...) fprintf(stderr, "**ERROR (greaseLib)** " s "\n", ##__VA_ARGS__ )
 //#define ERROR_PERROR(s,...) fprintf(stderr, "*****ERROR***** " s, ##__VA_ARGS__ );
 #define ERROR_PERROR(s,E,...) { char *__S=_errcmn::get_error_str(E); fprintf(stderr, "**ERROR** [ %s ] " s "\n", __S, ##__VA_ARGS__ ); _errcmn::free_error_str(__S); }
 
-#define DBG_OUT(s,...) fprintf(stderr, "**DEBUG** " s "\n", ##__VA_ARGS__ )
+#define DBG_OUT(s,...) fprintf(stderr, "**DEBUG_greaseLib** " s "\n", ##__VA_ARGS__ )
 #define IF_DBG( x ) { x }
 #else
-#define ERROR_OUT(s,...) fprintf(stderr, "**ERROR** " s, ##__VA_ARGS__ )//#define ERROR_PERROR(s,...) fprintf(stderr, "*****ERROR***** " s, ##__VA_ARGS__ );
-#define ERROR_PERROR(s,E,...) { char *__S=_errcmn::get_error_str(E); fprintf(stderr, "**ERROR** [ %s ] " s, __S, ##__VA_ARGS__ ); _errcmn::free_error_str(__S); }
+#define ERROR_OUT(s,...) fprintf(stderr, "**ERROR (greaseLib)** " s, ##__VA_ARGS__ )//#define ERROR_PERROR(s,...) fprintf(stderr, "*****ERROR***** " s, ##__VA_ARGS__ );
+#define ERROR_PERROR(s,E,...) { char *__S=_errcmn::get_error_str(E); fprintf(stderr, "**ERROR** (greaseLib) [ %s ] " s, __S, ##__VA_ARGS__ ); _errcmn::free_error_str(__S); }
 #define DBG_OUT(s,...) {}
 #define IF_DBG( x ) {}
 #endif
