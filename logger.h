@@ -1404,6 +1404,7 @@ protected:
 								::memcpy(buf,iov[iov_n].iov_base,iov[iov_n].iov_len);
 								*(buf+iov[iov_n].iov_len) = 0;
 								DBG_OUT("syslog in %d>> %s\n",iov_n, buf);
+								free(buf);
 #endif
 								if(RE2::FullMatch((char *) iov[iov_n].iov_base,re_dissect_syslog,&fac_pri,&cap_date,&cap_msg)) {
 //									if(cap_date.length() > 3) {

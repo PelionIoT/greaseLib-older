@@ -130,6 +130,7 @@ int main() {
 	GreaseLibTargetOpts *target2 = GreaseLib_new_GreaseLibTargetOpts();
 //	target2->file = outFile;
 //	target2->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
+
 	target2->optsId = CALLBACK_TARG_OPTID;
 	target2->targetCB = targetCallback;
 	target2->num_banks = 10; // default is 4, let's make it
