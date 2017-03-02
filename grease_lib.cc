@@ -31,17 +31,29 @@ GreaseLibBuf *GreaseLib_new_GreaseLibBuf(size_t size) {
 	b->data = (char *) b + sizeof(GreaseLibBuf);
 	b->size = 0;
 	b->own = 1;
+	b->_id = -1;
+	b->_shadow = NULL;
 	return b;
 }
+
+GreaseLibBuf *_greaseLib_new_empty_GreaseLibBuf() {
+	GreaseLibBuf *b = (GreaseLibBuf *) LMALLOC((int ) sizeof(GreaseLibBuf));
+	b->data = NULL;
+	b->size = 0;
+	b->own = 1;
+	b->_id = -1;
+	b->_shadow = NULL;
+	return b;
+}
+
 
 void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b) {
 	if(b->_id > -1) {
 		GreaseLogger *l = GreaseLogger::setupClass();
 		l->returnBufferToTarget(b);
-	} else {
-		if(b && b->own > 0) {
-			LFREE(b);
-		}
+	}
+	if(b && b->own > 0) {
+		LFREE(b);
 	}
 }
 

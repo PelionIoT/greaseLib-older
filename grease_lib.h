@@ -52,6 +52,7 @@ typedef struct {
 void GreaseLib_init_GreaseLibBuf(GreaseLibBuf *b);
 GreaseLibBuf *GreaseLib_new_GreaseLibBuf(size_t l);
 void GreaseLib_cleanup_GreaseLibBuf(GreaseLibBuf *b); // should be called when the callback is done using the buffer it was handed
+GreaseLibBuf *_greaseLib_new_empty_GreaseLibBuf();
 
 #define GREASE_BOOL int
 typedef struct {

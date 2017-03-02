@@ -851,13 +851,14 @@ void GreaseLogger::_doLibCallback(GreaseLogger::logTarget::writeCBData &data) {
 //		if(s.ToLocal(&sconv)) {
 //			argv[0] = sconv;
 //			argv[1] = Nan::New( data.t->myId );
-		GreaseLibBuf buf;
-		GreaseLib_init_GreaseLibBuf(&buf);
-		buf.data = data.b->handle.base;
-		buf.size = data.b->handle.len;
-		buf._id = (int) data.t->myId;
-		buf._shadow = data.b; // hide the original object here in void *
-		data.t->logCallback(NULL,&buf,data.t->myId);
+//		GreaseLibBuf buf;
+//		GreaseLib_init_GreaseLibBuf(&buf);
+		GreaseLibBuf *buf = _greaseLib_new_empty_GreaseLibBuf();
+		buf->data = data.b->handle.base;
+		buf->size = data.b->handle.len;
+		buf->_id = (int) data.t->myId;
+		buf->_shadow = data.b; // hide the original object here in void *
+		data.t->logCallback(NULL,buf,data.t->myId);
 
 // Below replaced, see returnBufferToTarget() above
 //		data.t->finalizeV8Callback(data.b);

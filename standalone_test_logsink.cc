@@ -4,6 +4,10 @@
 #include "grease_lib.h"
 #include <unistd.h>
 #include <string.h>
+#include <pthread.h>
+
+#include <TW/tw_alloc.h>
+#include <TW/tw_circular.h>
 
 void loggerStartedCB(GreaseLibError *, void *d) {
 	printf("Logger started.\n");
@@ -21,18 +25,44 @@ void filterAddCB(GreaseLibError *err, void *d) {
 
 char output_buf[5128];
 
-void targetCallback(GreaseLibError *err, void *d, uint32_t targetId) {
-	printf("**** in targetCallback - targId %d\n", targetId);
-	GreaseLibBuf *buf = (GreaseLibBuf *)d;
-	if(buf->size < 5127) {
-		memcpy(output_buf,buf->data,buf->size);
-		*(buf->data+buf->size+1) = '\0';
-		printf("CALLBACK TARGET>>>>>>>>>%s<<<<<<<<<<<<<<<<\n",output_buf);
-	} else {
-		printf("OOOPS. Overflow on test output. size was %lu\n",buf->size);
+uv_thread_t printThread;
+
+TWlib::tw_safeCircular<GreaseLibBuf *, TWlib::Allocator<TWlib::Alloc_Std> > printThese( 10, true );
+
+void *printWork(void *d) {
+	GreaseLibBuf *buf = NULL;
+	while(printThese.removeOrBlock(buf)) {
+		if(buf->size < 5127) {
+			memcpy(output_buf,buf->data,buf->size);
+			*(buf->data+buf->size+1) = '\0';
+			printf("CALLBACK TARGET>>>>>>>>>%s<<<<<<<<<<<<<<<<\n",output_buf);
+		} else {
+			printf("OOOPS. Overflow on test output. size was %lu %d\n",buf->size, buf->_id);
+		}
+	//	sleep(1);
+		GreaseLib_cleanup_GreaseLibBuf(buf);
 	}
-//	sleep(1);
-	GreaseLib_cleanup_GreaseLibBuf(buf);
+	return NULL;
+}
+
+
+void targetCallback(GreaseLibError *err, void *d, uint32_t targetId) {
+	GreaseLibBuf *buf = (GreaseLibBuf *)d;
+	printf("**** in targetCallback - targId %d (%lu)\n", targetId, buf->size);
+
+	if(!printThese.addIfRoom(buf)) {
+		printf("OOPS - ran out of room in queue to printout\n");
+	}
+
+//	GreaseLibBuf *buf = (GreaseLibBuf *)d;
+//	if(buf->size < 5127) {
+//		memcpy(output_buf,buf->data,buf->size);
+//		*(buf->data+buf->size+1) = '\0';
+//		printf("CALLBACK TARGET>>>>>>>>>%s<<<<<<<<<<<<<<<<\n",output_buf);
+//	} else {
+//		printf("OOOPS. Overflow on test output. size was %lu\n",buf->size);
+//	}
+//	GreaseLib_cleanup_GreaseLibBuf(buf);
 }
 
 #define CALLBACK_TARG_OPTID 99
@@ -122,6 +152,10 @@ int main() {
 	printf("after setup sink\n");
 
 
+	pthread_t printThreadId;
+	if(pthread_create(&printThreadId, NULL, printWork, NULL)) {
+		fprintf(stderr, "Error printWork thread\n");
+	}
 
 	printf("Will shutdown in %d seconds\n",WAITSECS);
 
