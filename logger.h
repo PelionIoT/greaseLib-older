@@ -2383,6 +2383,7 @@ protected:
 		void finalizeV8Callback(logBuf *b) {
 			b->clear();
 			if(!availBuffers.addIfRoom(b)) {
+				DBG_OUT("ERROR ERROR availBuffers was full (makes no sense) \n");
 				ERROR_OUT("ERROR ERROR availBuffers was full (makes no sense) \n");
 			}
 		}
