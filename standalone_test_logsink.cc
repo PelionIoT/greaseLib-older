@@ -40,7 +40,7 @@ void *printWork(void *d) {
 			printf("OOOPS. Overflow on test output. size was %lu %d\n",buf->size, buf->_id);
 		}
 	//	sleep(1);
-		GreaseLib_cleanup_GreaseLibBuf(buf);
+		GreaseLib_cleanup_GreaseLibBuf(buf);  // comment out to test overrun if Buffers are not being taken
 	}
 	return NULL;
 }

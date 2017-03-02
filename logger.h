@@ -2521,6 +2521,7 @@ protected:
 						currentBuffer->clear();
 					}
 				} else {
+					DBG_OUT(" !!! Can't rotate. NO BUFFERS - Overwriting buffer!! Data will be lost. [target %d]", myId);
 					if(owner->Opts.show_errors)
 						ERROR_OUT(" !!! Can't rotate. NO BUFFERS - Overwriting buffer!! Data will be lost. [target %d]", myId);
 					currentBuffer->clear();
