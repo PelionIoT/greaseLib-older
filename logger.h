@@ -2444,6 +2444,7 @@ protected:
 					GreaseLogger::_doLibCallback(cbdat);
 				} else {
 					if(!owner->callerLogCallbacks.addMvIfRoom(cbdat)) {
+						DBG_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 						if(owner->Opts.show_errors)
 							ERROR_OUT(" !!! v8LogCallbacks is full! Can't rotate. Callback will be skipped.");
 						b->clear();
