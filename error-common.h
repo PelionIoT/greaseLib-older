@@ -167,6 +167,7 @@ extern int __xpg_strerror_r (int __errnum, char *__buf, size_t __buflen);
 
 #endif // NO_ERROR_CMN_OUTPUT
 
+#define CRITICAL_FAILURE(s,...) fprintf(stderr,"**CRITICAL (greaseLib)** %s:%d " s, __FILE__, __LINE__)
 
 
 #endif /* ERROR_COMMON_H_ */

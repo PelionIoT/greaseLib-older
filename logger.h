@@ -2004,7 +2004,13 @@ protected:
 			if(n > 0) {
 				uv_mutex_lock(&mutex);
 				assert(n <= space);
-				assert(handle.len <= space);
+				if(handle.len > space) {
+					CRITICAL_FAILURE("handle.len > space!!! - copy will fail.");
+					handle.len = space;
+					uv_mutex_unlock(&mutex);
+ 					return;
+				}
+//				assert(handle.len <= space);
 				memcpy((void *) (handle.base + handle.len), s, n);
 				handle.len += n;
 				if(!delim.delim.empty() && use_delim) {
