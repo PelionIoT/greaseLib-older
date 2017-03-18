@@ -2182,6 +2182,9 @@ protected:
 		bool _disabled;
 	public:
 		const uint32_t JSON_ESCAPE_STRINGS = GREASE_JSON_ESCAPE_STRINGS;
+		// this strips string of their SGR and similar escpae codes
+		const uint32_t STRIP_ANSI_ESCAPE_CODES = GREASE_STRIP_ANSI_ESCAPE_CODES;
+
 		typedef void (*targetReadyCB)(bool ready, _errcmn::err_ev &err, logTarget *t);
 		targetReadyCB readyCB;
 		target_start_info *readyData;

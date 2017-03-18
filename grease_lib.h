@@ -134,6 +134,9 @@ typedef struct {
 
 // tell the target to JSON escape all strings handed to it
 #define GREASE_JSON_ESCAPE_STRINGS 0x00000001
+// strip incoming messages of ANSI escape sequences (color, etc)
+// https://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+#define GREASE_STRIP_ANSI_ESCAPE_CODES  0x00000002
 
 GreaseLibTargetFileOpts *GreaseLib_new_GreaseLibTargetFileOpts();
 GreaseLibTargetFileOpts *GreaseLib_init_GreaseLibTargetFileOpts(GreaseLibTargetFileOpts *);

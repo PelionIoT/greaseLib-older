@@ -67,11 +67,40 @@ int memcpy_and_json_escape(char *out, const char *in, int in_len, int *out_len) 
 
 //	uint32_t codepoint = 0; // utf8 code point
 
-	enum STATE { LOOKING, UTF8_BYTE2, UTF8_BYTE3, UTF8_BYTE4 };
+	enum STATE { LOOKING, UTF8_BYTE2, UTF8_BYTE3, UTF8_BYTE4, ANSI_ESCAPE, ESCAPE };
 	enum STATE state = LOOKING;
 
 	while(in_remain > 0 && space > 0) {
+		if(state == ESCAPE) {
+			if(*walk_in == '[') { // that a 'CSI'
+				state = ANSI_ESCAPE;
+				walk_in++; in_remain++;
+				continue;
+			} else
+				state = LOOKING;
+		} else
+		if(state == ANSI_ESCAPE) {
+		// deal with CSI codes. we want to ignore them
+		// good list here: https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_codes
+			if((*walk_in >= '0' && *walk_in <= '9') ||
+					*walk_in == ';'
+					) {
+				walk_in++; in_remain++;
+				continue;
+			} else {
+				// eat the last character - usually an 'm'
+				state = LOOKING;
+				walk_in++; in_remain++;
+				continue;
+			}
+
+		}
+
 		if(state == LOOKING) {
+			if(*walk_in == 0x1B) {
+				state = ESCAPE;
+				walk_in++; in_remain++;
+			} else
 			if((*walk_in & 0x80) == 0) {
 				switch(*walk_in) {
 					case '\n':
@@ -145,29 +174,43 @@ int memcpy_and_json_escape(char *out, const char *in, int in_len, int *out_len) 
 
 //#include <assert.h>
 //int main() {
+//	static const char * CSI = "\33[";
+//
 //	char *test1 = "123456789\"abcdef ads\"\121212\nq2121221END";
 //	char *test2 = "123456789\"abcdef ads\"\121212\nq2121221END慑逑슢¢\\uABCDkjsa\\u0019\n\fEND";
 //	char *test3 = "123456789\"¢\\¢abcdef ads\"\121212\nq2121221END\\\\\\\\\\END";
-//
+//	char *test4 = "\33[31mRED REDR RED\33[0mnormal normal慑逑슢¢\ END";
+//	char *test5 = "\33[31;33fMOVE CURSOR HERE\33[0 normal all good ok END";
 //	int out_len = 256;
 //	char buf[256];
 //	//  memcpy_and_json_escape(char *out, const char *in, int in_len, int *out_len)
 //	memcpy_and_json_escape(buf,test1,strlen(test1),&out_len);
 //	printf("test1:>>%s<<\n",test1);
 //	printf("test1:>>%s<<\n\n",buf);
-//	printf("strlen(buf)=%d, out_len=%d",(int)strlen(buf),out_len);
+//	printf("strlen(buf)=%d, out_len=%d\n",(int)strlen(buf),out_len);
 //	assert(strlen(buf)==out_len);
 //
 //	out_len = 256;
 //	memcpy_and_json_escape(buf,test2,strlen(test2),&out_len);
-//	printf("test1:>>%s<<\n",test2);
-//	printf("test1:>>%s<<\n\n",buf);
+//	printf("test2:>>%s<<\n",test2);
+//	printf("test2:>>%s<<\n\n",buf);
 //	assert(strlen(buf)==out_len);
 //
 //	out_len = 256;
 //	memcpy_and_json_escape(buf,test3,strlen(test3),&out_len);
-//	printf("test1:>>%s<<\n",test3);
-//	printf("test1:>>%s<<\n\n",buf);
+//	printf("test3:>>%s<<\n",test3);
+//	printf("test3:>>%s<<\n\n",buf);
+//
+//	out_len = 256;
+//	memcpy_and_json_escape(buf,test4,strlen(test4),&out_len);
+//	printf("test4:>>%s<<\n",test4);
+//	printf("test4:>>%s<<\n\n",buf);
+//
+////	out_len = 256;
+////	memcpy_and_json_escape(buf,test5,strlen(test5),&out_len);
+////	printf("test5:>>%s<<\n",test5);
+////	printf("test5:>>%s<<\n\n",buf);
+//
 //}
 //  gcc local_strdup.c -o test-str
 

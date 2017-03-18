@@ -265,7 +265,6 @@ int main() {
 	target->format_tag_len = strlen(tag_format);
 	target->format_origin = (char *) origin_format;
 	target->format_origin_len = strlen(origin_format);
-
 	target->fileOpts = GreaseLib_new_GreaseLibTargetFileOpts();
 	f1 = GreaseLib_new_GreaseLibFilter();
 
