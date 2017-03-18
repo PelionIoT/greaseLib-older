@@ -114,6 +114,159 @@ bool libStarted = false;
 int observationCounter;
 uv_mutex_t runningLock;
 
+class fdRedirectorTicket final {
+public:
+	uint32_t origin;
+	uint32_t tag;
+	uint32_t level;
+	int fd;
+	bool closed;
+	uv_poll_t handle;
+	GreaseLibProcessClosedRedirect cb;
+	fdRedirectorTicket() = delete;
+	fdRedirectorTicket(uint32_t o, int _fd, GreaseLibProcessClosedRedirect _cb): origin(o), tag(0), level(0), fd(_fd), closed(false), cb(_cb) {
+		uv_poll_init(&libLoop, &handle, fd); // NOTE: this should set the descriptor to non-blocking mode
+		handle.data = this;
+	}
+	void close() {
+		if(!closed) {
+			closed = true;
+			::close(fd);
+		}
+	}
+	~fdRedirectorTicket() {
+		uv_poll_stop(&handle);
+	}
+	void startPoll(uv_poll_cb cb) {
+		uv_poll_start(&handle,UV_READABLE | UV_DISCONNECT, cb);
+	}
+};
+
+struct fd_int_eqstrP {
+	  inline int operator() (const int *l, const int *r) const
+	  {
+		  return (*l == *r);
+	  }
+};
+
+// a thread-safe hash table type used to map a file descriptor to a fdRedirect_t struct
+typedef TWlib::TW_KHash_32<int, fdRedirectorTicket *, TWlib::TW_Mutex, fd_int_eqstrP, TWlib::Allocator<LoggerAlloc> > fdRedirectTable;
+
+fdRedirectTable *stdoutRedirectTable = NULL;
+fdRedirectTable *stderrRedirectTable = NULL;
+
+
+//DECL_LOG_META(_stdoutMeta,0,0,0);
+void _greaseLib_handle_stdoutFd_cb(uv_poll_t *handle, int status, int events) {
+	fdRedirectorTicket *r = (fdRedirectorTicket *) handle->data;
+	if(status == 0) {
+		if(r && (events & UV_READABLE)) {
+			DBG_OUT_LINE("level triggered\n");
+			GreaseLogger *l = GreaseLogger::setupClass();
+			GreaseLogger::singleLog *entry = NULL;
+			ssize_t rlen = 1;
+			while(rlen > 0) {
+				// use the _grabInLogBuffer internal calls, to prevent
+				// extra memcpy()s
+				if(l->_grabInLogBuffer(entry) == GREASE_OK) {
+					// ok, if read() returns 0 - then it's over:
+					// http://stackoverflow.com/questions/19871556/what-is-the-expected-behavior-for-epoll-wait-ing-on-the-read-end-of-a-closed-pip
+					rlen = ::read(r->fd,entry->buf.handle.base, entry->buf.handle.len);
+					if(rlen > 0) {
+						entry->buf.used = rlen;
+						entry->meta.m.origin = r->origin;
+						if(r->tag > 0) entry->meta.m.tag = r->tag;
+						else entry->meta.m.tag = GREASE_TAG_STDOUT;
+						if(r->level > 0) entry->meta.m.level = r->level;
+						else entry->meta.m.level = GREASE_LEVEL_LOG;
+						entry->incRef();
+						l->_submitBuffer(entry);
+					} else if(rlen == 0) {
+						// so, the stream has no more data and is closed:
+						r->close();
+						uv_poll_stop(&r->handle);
+						l->_returnBuffer(entry);
+						if(r->cb) r->cb(NULL,GREASE_PROCESS_STDOUT,r->fd);
+					} else {
+						l->_returnBuffer(entry);
+						// handle errors:
+						if(rlen == -1) {
+							// ignore these errno - they just mean no more data for now
+							if(errno != EAGAIN || errno != EWOULDBLOCK) {
+								ERROR_PERROR("read() failed: _greaseLib_handle_stdoutFd_cb",errno);
+							}
+						}
+					}
+				} else {
+					ERROR_OUT("Failed to get buffer: _greaseLib_handle_stdoutFd_cb");
+					break;
+				}
+			}
+		}
+		if(events & UV_DISCONNECT) {
+			DBG_OUT("Saw UV_DISCONNECT");
+		}
+	} else {
+		// error on callback
+		ERROR_OUT("_greaseLib_handle_stdoutFd_cb status = %d",status);
+	}
+}
+
+
+void _greaseLib_handle_stderrFd_cb(uv_poll_t *handle, int status, int events) {
+	fdRedirectorTicket *r = (fdRedirectorTicket *) handle->data;
+	if(status == 0) {
+		if(r && (events & UV_READABLE)) {
+			GreaseLogger *l = GreaseLogger::setupClass();
+			GreaseLogger::singleLog *entry = NULL;
+			ssize_t rlen = 1;
+			while(rlen > 0) {
+				// use the _grabInLogBuffer internal calls, to prevent
+				// extra memcpy()s
+				if(l->_grabInLogBuffer(entry) == GREASE_OK) {
+					rlen = ::read(r->fd,entry->buf.handle.base, entry->buf.handle.len);
+					if(rlen > 0) {
+						entry->buf.used = rlen;
+						entry->meta.m.origin = r->origin;
+						if(r->tag > 0) entry->meta.m.tag = r->tag;
+						else entry->meta.m.tag = GREASE_TAG_STDERR;
+						if(r->level > 0) entry->meta.m.level = r->level;
+						else entry->meta.m.level = GREASE_LEVEL_ERROR;
+						entry->incRef();
+						l->_submitBuffer(entry);
+					} else if(rlen == 0) {
+						// so, the stream has no more data and is closed:
+						r->close();
+						uv_poll_stop(&r->handle);
+						l->_returnBuffer(entry);
+						if(r->cb) r->cb(NULL,GREASE_PROCESS_STDOUT,r->fd);
+					} else {
+						l->_returnBuffer(entry);
+						// handle errors:
+						if(rlen == -1) {
+							// ignore these errno - they just mean no more data for now
+							if(errno != EAGAIN || errno != EWOULDBLOCK) {
+								ERROR_PERROR("read() failed: _greaseLib_handle_stdoutFd_cb",errno);
+							}
+						}
+					}
+				} else {
+					ERROR_OUT("Failed to get buffer: _greaseLib_handle_stdoutFd_cb");
+					break;
+				}
+			}
+		}
+		if(events & UV_DISCONNECT) {
+			DBG_OUT("Saw UV_DISCONNECT");
+		}
+	} else {
+		// error on callback
+		ERROR_OUT("_greaseLib_handle_stdoutFd_cb status = %d",status);
+	}
+}
+
+
+
 void libraryMain(void *arg) {
 	libStarted = true;
 // Callbacks will occur in this thread.
@@ -127,6 +280,9 @@ void heartbeat(uv_timer_t* handle) {
 }
 
 LIB_METHOD(start) {
+	stdoutRedirectTable = new fdRedirectTable();
+	stderrRedirectTable = new fdRedirectTable();
+
 	uv_loop_init(&libLoop);
 
 	observationCounter = 0;
@@ -999,7 +1155,6 @@ LIB_METHOD_SYNC(addSink,GreaseLibSink *sink) {
 //	}
 //}
 
-
 LIB_METHOD_SYNC(disableTarget, TargetId id) {
 	GreaseLogger *l = GreaseLogger::setupClass();
 
@@ -1035,6 +1190,56 @@ LIB_METHOD_SYNC(flush, TargetId id) {
 	}
 }
 
+/**
+ * Tells greaseLib to monitor this file descriptor
+ * and log all output as tag 'stdout' with given originId
+ */
+LIB_METHOD_SYNC(addFDForStdout,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb) {
+	fdRedirectorTicket *data = new fdRedirectorTicket(originId, fd, cb);
+	fdRedirectorTicket *old = NULL;
+	stdoutRedirectTable->addReplace(fd,data,old);
+	if(old) {
+		delete old;
+	}
+	data->startPoll(_greaseLib_handle_stdoutFd_cb);
+	return GREASE_LIB_OK;
+}
+
+/**
+ * Tells greaseLib to monitor this file descriptor
+ * and log all output as tag 'stderr' with given originId
+ */
+LIB_METHOD_SYNC(addFDForStderr,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb) {
+	fdRedirectorTicket *data = new fdRedirectorTicket(originId, fd, cb);
+	fdRedirectorTicket *old = NULL;
+	stderrRedirectTable->addReplace(fd,data,old);
+	if(old) {
+		// we don't close it b/c its the same number as the incoming
+		// this should never happen
+		delete old;
+	}
+	data->startPoll(_greaseLib_handle_stderrFd_cb);
+	return GREASE_LIB_OK;
+}
+
+LIB_METHOD_SYNC(removeFDForStdout,int fd) {
+	fdRedirectorTicket *old = NULL;
+	stdoutRedirectTable->remove(fd,old);
+	if(old) {
+		old->close();
+		delete old;
+	}
+	return GREASE_LIB_OK;
+}
+LIB_METHOD_SYNC(removeFDForStderr,int fd) {
+	fdRedirectorTicket *old = NULL;
+	stderrRedirectTable->remove(fd,old);
+	if(old) {
+		old->close();
+		delete old;
+	}
+	return GREASE_LIB_OK;
+}
 
 
 

@@ -1772,6 +1772,38 @@ NAN_METHOD(GreaseLogger::Flush) {
 
 #endif
 
+int GreaseLogger::_grabInLogBuffer(singleLog* &buf) {
+	if(masterBufferAvail.remove(buf)){
+		return GREASE_OK;
+	} else {
+		return GREASE_OVERFLOW;
+	}
+}
+
+int GreaseLogger::_returnBuffer(singleLog *buf) {
+	buf->clear();
+	masterBufferAvail.add(buf);
+}
+
+int GreaseLogger::_submitBuffer(singleLog *buf) {
+	if(buf->buf.used < 1) {
+		// if for some reason the caller does not put anything in the buffer,
+		// then just return it
+		buf->clear();
+		masterBufferAvail.add(buf);
+		return GREASE_OK;
+	}
+	internalCmdReq req(NEW_LOG);
+	req.aux = buf;
+	if(internalCmdQueue.addMvIfRoom(req))
+		uv_async_send(&asyncInternalCommand);
+	else {
+		buf->clear();
+		masterBufferAvail.add(buf);
+		ERROR_OUT("internalCmdQueue is out of space!! Dropping. (_submitBuffer) \n");
+	}
+}
+
 int GreaseLogger::_log( const logMeta &meta, const char *s, int len) { // internal log cmd
 //	HEAVY_DBG_OUT("out len: %d\n",len);
 //	DBG_OUT("meta.level %x",meta.level);
@@ -1793,8 +1825,10 @@ int GreaseLogger::_log( const logMeta &meta, const char *s, int len) { // intern
 		req.aux = l;
 		if(internalCmdQueue.addMvIfRoom(req))
 			uv_async_send(&asyncInternalCommand);
-		else
-			ERROR_OUT("internalCmdQueue is out of space!! Dropping. \n");
+		else {
+			ERROR_OUT("internalCmdQueue is out of space!! Dropping. (_log) \n");
+			delete l;
+		}
 	} else {
 		if(masterBufferAvail.remove(l)) {
 			l->buf.memcpy(s,len);
@@ -1809,8 +1843,11 @@ int GreaseLogger::_log( const logMeta &meta, const char *s, int len) { // intern
 			req.aux = l;
 			if(internalCmdQueue.addMvIfRoom(req))
 				uv_async_send(&asyncInternalCommand);
-			else
-				ERROR_OUT("internalCmdQueue is out of space!! Dropping. \n");
+			else {
+				l->clear();
+				masterBufferAvail.add(l);
+				ERROR_OUT("internalCmdQueue is out of space!! Dropping. (_log) \n");
+			}
 		} else {
 			ERROR_OUT("masterBuffer is out of space!! Dropping. (%d)\n", masterBufferAvail.remaining());
 		}

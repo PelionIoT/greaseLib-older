@@ -13,6 +13,7 @@
 #ifndef GreaseLib_H_
 #define GreaseLib_H_
 #include "grease_client.h"
+#include <uv.h>
 #include <gperftools/tcmalloc.h>
 #include <stdint.h>
 
@@ -76,6 +77,9 @@ LIB_METHOD_SYNC(unmaskOutByLevel, uint32_t val);
 LIB_METHOD_SYNC(setupStandardLevels);
 LIB_METHOD_SYNC(setupStandardTags);
 
+
+void _greaseLib_handle_stdoutFd_cb(uv_poll_t *handle, int status, int events);
+void _greaseLib_handle_stderrFd_cb(uv_poll_t *handle, int status, int events);
 
 
 #define GREASE_LIB_SET_FILEOPTS_MODE           0x10000000
@@ -211,6 +215,23 @@ LIB_METHOD_SYNC(enableTarget, TargetId id);
 LIB_METHOD_SYNC(flush, TargetId id);
 
 extern const TagId GREASE_SYSLOGFAC_TO_TAG_MAP[22];
+
+#define GREASE_PROCESS_STDOUT 1
+#define GREASE_PROCESS_STDERR 2
+
+typedef void (*GreaseLibProcessClosedRedirect) (GreaseLibError *, int stream_type, int pid);
+
+// These methods tell the greaseLib to poll the stated
+// file descriptor for reads, and log these under the given
+// origin ID. The log will be tagged stdout or stderr
+LIB_METHOD_SYNC(addFDForStdout,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb);
+LIB_METHOD_SYNC(addFDForStderr,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb);
+
+
+LIB_METHOD_SYNC(removeFDForStdout,int fd);
+LIB_METHOD_SYNC(removeFDForStderr,int fd);
+
+
 
 #ifdef __cplusplus
 }
