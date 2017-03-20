@@ -77,6 +77,8 @@ LIB_METHOD_SYNC(unmaskOutByLevel, uint32_t val);
 LIB_METHOD_SYNC(setupStandardLevels);
 LIB_METHOD_SYNC(setupStandardTags);
 
+LIB_METHOD_SYNC(getUnusedOriginId, uint32_t *val);
+LIB_METHOD_SYNC(getUnusedTagId, uint32_t *val);
 
 void _greaseLib_handle_stdoutFd_cb(uv_poll_t *handle, int status, int events);
 void _greaseLib_handle_stderrFd_cb(uv_poll_t *handle, int status, int events);

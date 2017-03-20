@@ -113,6 +113,8 @@ bool libStarted = false;
 
 int observationCounter;
 uv_mutex_t runningLock;
+uv_mutex_t tagGenLock;
+
 
 class fdRedirectorTicket final {
 public:
@@ -291,6 +293,7 @@ LIB_METHOD(start) {
 	// timer keeps uv_run up
 	uv_timer_init(&libLoop, &idleTimer);
 	uv_mutex_init(&runningLock);
+	uv_mutex_init(&tagGenLock);
 	uv_timer_start(&idleTimer, heartbeat, 5000, 2000);
 	GreaseLogger *l = GreaseLogger::setupClass(DEFAULT_BUFFER_SIZE,LOGGER_DEFAULT_CHUNK_SIZE,&libLoop);
 	GreaseLogger::target_start_info *startinfo = new GreaseLogger::target_start_info();
@@ -562,6 +565,35 @@ LIB_METHOD_SYNC(setupStandardTags) {
 	GREASE_ADD_RES_TAG_N_LABEL( SYS_LOCAL5 );
 	GREASE_ADD_RES_TAG_N_LABEL( SYS_LOCAL6 );
 	GREASE_ADD_RES_TAG_N_LABEL( SYS_LOCAL7 );
+	return GREASE_OK;
+}
+
+
+#define START_TAG_ID 1000
+#define START_ORIGIN_ID 1000
+
+uint32_t nextOriginId = START_ORIGIN_ID;
+uint32_t nextTagId = START_TAG_ID;
+
+LIB_METHOD_SYNC(getUnusedOriginId, uint32_t *val) {
+	uv_mutex_lock(&tagGenLock);
+	*val = nextOriginId;
+	nextOriginId++;
+	if(nextOriginId >= GREASE_RESERVED_TAGS_START) {
+		nextOriginId = START_ORIGIN_ID;
+	}
+	uv_mutex_unlock(&tagGenLock);
+	return GREASE_OK;
+}
+
+LIB_METHOD_SYNC(getUnusedTagId, uint32_t *val) {
+	uv_mutex_lock(&tagGenLock);
+	*val = nextTagId;
+	nextTagId++;
+	if(nextTagId >= GREASE_RESERVED_TAGS_START) {
+		nextTagId = START_TAG_ID;
+	}
+	uv_mutex_unlock(&tagGenLock);
 	return GREASE_OK;
 }
 
