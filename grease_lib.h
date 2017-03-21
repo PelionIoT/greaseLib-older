@@ -232,6 +232,7 @@ typedef void (*GreaseLibProcessClosedRedirect) (GreaseLibError *, int stream_typ
 LIB_METHOD_SYNC(addFDForStdout,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb);
 LIB_METHOD_SYNC(addFDForStderr,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb);
 
+LIB_METHOD_SYNC(addDefaultRedirectorClosedCB, GreaseLibProcessClosedRedirect cb);
 
 LIB_METHOD_SYNC(removeFDForStdout,int fd);
 LIB_METHOD_SYNC(removeFDForStderr,int fd);

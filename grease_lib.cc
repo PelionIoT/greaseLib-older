@@ -115,6 +115,9 @@ int observationCounter;
 uv_mutex_t runningLock;
 uv_mutex_t tagGenLock;
 
+// this is a fallback callback. If assigned, it is used if the fdRedirectorTicket does not
+// have a CB assignment. We specifically need this in the Go bindings.
+GreaseLibProcessClosedRedirect defaultRedirectorClosedCB = NULL;
 
 class fdRedirectorTicket final {
 public:
@@ -188,7 +191,10 @@ void _greaseLib_handle_stdoutFd_cb(uv_poll_t *handle, int status, int events) {
 						r->close();
 						uv_poll_stop(&r->handle);
 						l->_returnBuffer(entry);
-						if(r->cb) r->cb(NULL,GREASE_PROCESS_STDOUT,r->fd);
+						if(r->cb) { r->cb(NULL,GREASE_PROCESS_STDOUT,r->fd); }
+						else if(defaultRedirectorClosedCB) {
+							defaultRedirectorClosedCB(NULL,GREASE_PROCESS_STDOUT,r->fd);
+						}
 					} else {
 						l->_returnBuffer(entry);
 						// handle errors:
@@ -241,7 +247,10 @@ void _greaseLib_handle_stderrFd_cb(uv_poll_t *handle, int status, int events) {
 						r->close();
 						uv_poll_stop(&r->handle);
 						l->_returnBuffer(entry);
-						if(r->cb) r->cb(NULL,GREASE_PROCESS_STDOUT,r->fd);
+						if(r->cb) { r->cb(NULL,GREASE_PROCESS_STDERR,r->fd); }
+						else if(defaultRedirectorClosedCB) {
+							defaultRedirectorClosedCB(NULL,GREASE_PROCESS_STDERR,r->fd);
+						}
 					} else {
 						l->_returnBuffer(entry);
 						// handle errors:
@@ -1234,6 +1243,11 @@ LIB_METHOD_SYNC(addFDForStdout,int fd, uint32_t originId, GreaseLibProcessClosed
 		delete old;
 	}
 	data->startPoll(_greaseLib_handle_stdoutFd_cb);
+	return GREASE_LIB_OK;
+}
+
+LIB_METHOD_SYNC(addDefaultRedirectorClosedCB, GreaseLibProcessClosedRedirect cb) {
+	defaultRedirectorClosedCB = cb;
 	return GREASE_LIB_OK;
 }
 
