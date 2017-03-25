@@ -277,6 +277,11 @@ void _greaseLib_handle_stderrFd_cb(uv_poll_t *handle, int status, int events) {
 }
 
 
+LIB_METHOD_SYNC(logCharBuffer, logMeta *f, const char *utf8, int len) {
+	GreaseLogger *l = GreaseLogger::setupClass();
+	return l->logP(f,utf8,len);
+}
+
 
 void libraryMain(void *arg) {
 	libStarted = true;
