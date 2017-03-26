@@ -211,7 +211,6 @@ int _grease_logToRaw(logMeta *f, const char *s, RawLogLen len, char *tobuf, RawL
 		return GREASE_NO_BUFFER;
 	int w = 0;
 
-
 	memcpy(tobuf,&__grease_preamble,SIZEOF_SINK_LOG_PREAMBLE);
 	w += SIZEOF_SINK_LOG_PREAMBLE;
 	int __len = len+sizeof(RawLogLen)+SIZEOF_SINK_LOG_PREAMBLE;

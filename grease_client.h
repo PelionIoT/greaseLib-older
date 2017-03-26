@@ -151,7 +151,7 @@ __DEFAULT_LOG_META_PRIVATE }
 #define GREASE_TAG_STDOUT  0x01
 #define GREASE_TAG_STDERR  0x02
 #define GREASE_TAG_SYSLOG  0x03
-
+#define GREASE_TAG_INTERNAL 0x04  // used by greaseLib or user of greaseLib - i.e. logging daemon
 
 // End "STANDARD" setup
 
