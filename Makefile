@@ -87,7 +87,7 @@ libgrease.a-server: $(OBJS)
 
 standalone_test_logsink: CFLAGS+= -DGREASE_LIB -I./deps/$(LIBUVDIR)/include -I./deps/twlib/include
 standalone_test_logsink: standalone_test_logsink.o libgrease.a
-	$(CXX) $(CXXFLAGS) $(CFLAGS) libgrease.a $(LDFLAGS) -o $@ 
+	$(CXX) $(CXXFLAGS) $(CFLAGS) libgrease.a $(LDFLAGS) -lpthread -pthread  -o $@ 
 
 grease_echo: CFLAGS+= -DGREASE_LIB -I./deps/$(LIBUVDIR)/include -I./deps/twlib/include
 grease_echo: $(OUTPUT_DIR)/grease_client.o $(OUTPUT_DIR)/grease_echo.o
