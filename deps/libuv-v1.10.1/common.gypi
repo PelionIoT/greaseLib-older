@@ -38,6 +38,10 @@
           ['OS != "zos"', {
             'cflags': [ '-O0', '-fwrapv' ]
           }],
+          ['OS == "linux"', {
+            'cflags': [ '-fPIC' ],
+            'ldflags': [ '-fPIC' ]
+          }],          
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
@@ -148,7 +152,8 @@
             'ldflags': [ '-mx32' ],
           }],
           [ 'OS=="linux"', {
-            'cflags': [ '-ansi' ],
+            'cflags': [ '-ansi', '-fPIC' ],
+			'ldflags': [ '-fPIC' ],
           }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
