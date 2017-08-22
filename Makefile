@@ -37,9 +37,9 @@ LD_TEST_FLAGS= -lgtest
 
 ## concerning the -whole-archive flags: http://stackoverflow.com/questions/14889941/link-a-static-library-to-a-shared-one-during-build
 ## originally we used that when creating the node module version of greaseLogger - but apparently needed for tcmalloc here also
-LDFLAGS += -L./deps/build/lib -luv -lre2 -ldl -lTW -ltcmalloc_minimal -lstacktrace -lstdc++
+LDFLAGS += -L./deps/build/lib -luv -lre2 -ldl -lTW -lm -ltcmalloc_minimal -lstacktrace -lstdc++
 # -Wl,-whole-archive deps/build/lib/libtcmalloc_minimal.a -Wl,-no-whole-archive 
-STATIC_LIB_FLAGS= deps/build/lib/libuv.a deps/build/lib/libre2.a -ldl -lTW -Wl,-whole-archive deps/build/lib/libtcmalloc_minimal.a -Wl,-no-whole-archive
+STATIC_LIB_FLAGS= deps/build/lib/libuv.a deps/build/lib/libre2.a -ldl -lTW -lm -Wl,-whole-archive deps/build/lib/libtcmalloc_minimal.a -Wl,-no-whole-archive
 
 HRDS= include/TW/tw_bufblk.h  include/TW/tw_globals.h  include/TW/tw_object.h include/TW/tw_stack.h\
 include/TW/tw_dlist.h   include/TW/tw_llist.h    include/TW/tw_socktask.h    include/TW/tw_syscalls.h\
