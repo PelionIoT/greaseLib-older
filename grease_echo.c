@@ -41,11 +41,13 @@ int main(int argc, char *argv[]) {
 
 	DECL_LOG_META( echo_meta, GREASE_ECHO_TAG, GREASE_LEVEL_LOG, GREASE_GREASEECHO_ORIGIN );
 
+
 	if(argv[n][0] == '-' && argv[n][1] == '-') {
 		if(!strcmp(argv[1]+2,"help")) {
-			printf("Usage: grease_echo [--check] [--socket PATH] [--[LEVEL]] \"string here\"\n"
+			printf("Usage: grease_echo [--check] | { [--socket PATH] [--origin NUM] [--[LEVEL]] \"string here\" }\n"
 				   "            --socket PATH  use a custom path to the grease socket. Must be first argument.\n"
 				   "                           Needs an absolute path.\n"
+				   "            --origin NUM   use a specified origin-id number, instead of the 'grease echo' constant\n"
 				   "            --check        will check to see if logger is live. (Use with no other args)\n"
 				   "LEVELs:     --error\n"
 				   "            --warn\n"
@@ -58,6 +60,7 @@ int main(int argc, char *argv[]) {
 				   "            --user2\n");
 			exit(1);
 		}
+
 		if(!strcmp(argv[1]+2,"check")) {
 			if(grease_initLogger() != GREASE_OK) {
 				printf("Grease not running.\n");
@@ -68,11 +71,35 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		int _loop = 0;
+		do {
+			_loop = 0;
+			if(!strcmp(argv[opt_n+1]+2,"socket")){
+				socket_path = argv[opt_n+2];
+				opt_n += 2;
+				_loop = 1;
+			}
 
-		if(!strcmp(argv[1]+2,"socket")){
-			socket_path = argv[2];
-			opt_n += 2;
-		}
+			if(!strcmp(argv[opt_n+1]+2,"origin")) {
+				printf("GOT %s\n", argv[opt_n+2]);
+				int z = atoi(argv[opt_n+2]);
+				printf("GOT %d\n", z);
+				if(z == 0) {
+					fprintf(stderr,"Can't get integer from --origin [num]. Ignoring\n");
+					continue;
+				}
+				if(z < 1 || z > GREASE_RESERVED_ORIGINS_START) {
+					fprintf(stderr,"Warning: provided origin value is out of range. Reserved numbers start at: %d\n",GREASE_RESERVED_ORIGINS_START);
+				}
+				echo_meta.origin = z;
+				opt_n += 2;
+				_loop = 1;
+			}
+
+		} while(_loop);
+
+
+
 
 		if(grease_fastInitLogger_extended(socket_path) != GREASE_OK) {
 			fprintf(stderr,"    Error: Grease not running.\n");
@@ -101,6 +128,7 @@ int main(int argc, char *argv[]) {
 			} else
 			if(!strcmp(argv[opt_n+1]+2,"debug")) {
 				echo_meta.level = GREASE_LEVEL_DEBUG;
+				printf("ORIGIN %d\n", echo_meta.origin);
 				grease_printf(&echo_meta,argv[opt_n+2]);
 				bye(0);
 			} else

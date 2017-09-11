@@ -289,6 +289,10 @@ int main() {
 	GreaseLib_set_flag_GreaseLibTargetOpts(target2,GREASE_JSON_ESCAPE_STRINGS);
 	GreaseLib_addTarget(targetAddCB, target2);
 
+	// an origin label for testing
+	const char *testLabel = "testLabel";
+	GreaseLib_addOriginLabel( 1055, testLabel, strlen(testLabel) );
+
 	int ret;
 
 	if((ret = GreaseLib_addSink(sink)) != GREASE_LIB_OK) {

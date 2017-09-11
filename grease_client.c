@@ -307,9 +307,9 @@ int grease_logToSink(logMeta *f, const char *s, RawLogLen len) {
 #else
 	iov[SINK_BUFFER_META].iov_base = (void *) (f);
 #endif
-#ifndef GREASE_NO_DEFAULT_NATIVE_ORIGIN
-	((logMeta *) iov[SINK_BUFFER_META].iov_base)->origin = __grease_default_origin;
-#endif
+//#ifndef GREASE_NO_DEFAULT_NATIVE_ORIGIN
+//	((logMeta *) iov[SINK_BUFFER_META].iov_base)->origin = __grease_default_origin;
+//#endif
 	iov[SINK_BUFFER_STRING].iov_base = (void *) s;
 	iov[SINK_BUFFER_STRING].iov_len = len;
 	int sent_cnt = 0;
