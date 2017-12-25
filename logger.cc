@@ -1775,6 +1775,243 @@ NAN_METHOD(GreaseLogger::Flush) {
 
 #endif
 
+
+
+// Exmaple kernel log entry:
+// <2>[1921219.107969] CPU1: Core temperature above threshold, cpu clock throttled (total events = 6581804)
+
+//		KERN_EMERG	<0>	Emergency messages (precede a crash)
+//		KERN_ALERT	<1>	Error requiring immediate attention
+//		KERN_CRIT	<2>	Critical error (hardware or software)
+//		KERN_ERR	<3>	Error conditions (common in drivers)
+//		KERN_WARNING<4>	Warning conditions (could lead to errors)
+//		KERN_NOTICE	<5>	Not an error but a significant condition
+//		KERN_INFO	<6>	Informational message
+//		KERN_DEBUG	<7>	Used only for debug messages
+//		KERN_DEFAULT<d>	Default kernel logging level
+//		KERN_CONT	<c>	Continuation of a log line (avoid adding new time stamp)
+
+//
+/**
+ * A utility function for intenral use, which parses a kernel log, coming out of the kernel ring-buffer or by /dev/kmsg
+ *
+ * The best source to understand the ring buffer and how to read it is dmesg.c source, which is in the linux-utils package.
+ *
+ * return true if there is an entry to send to the logger, false if not
+ */
+bool GreaseLogger::parse_single_klog_to_singleLog(char *start, int &remain, klog_parse_state &begin_state, singleLog *entry, char *&moved) {
+	klog_parse_state state = begin_state;
+	char *look = start;
+	char *cap = NULL;
+	int klog_level;
+
+	while(remain > 0 && state != INVALID && state != END_LOG) {
+		switch(state) {
+			case LEVEL_BEGIN:
+				if (*look == '<') {
+					state = IN_LEVEL;
+					cap = look+1;
+				} else {
+					state = INVALID;
+				}
+				break;
+			case IN_LEVEL:
+				if (*look == '>') {
+					*look = '\0';  // make it NULL, so we can capture the string
+
+					if(look == cap + 1) { // there should be only 1 digit between < >
+						if(*cap == 'c') {
+							// this is a continuation line. Special case.
+							// TODO
+							state = CONT_BODY_BEGIN;
+						} else
+						if(*cap == 'd') {
+							entry->meta.m.level = GREASE_KLOG_DEFAULT_LEVEL;
+							state = TIME_STAMP_BEGIN;
+						} else {
+							klog_level = *cap - '0';
+							if (klog_level < 8 && klog_level >= 0) {
+								// valid level
+								entry->meta.m.level = GREASE_KLOGLEVEL_TO_LEVEL_MAP[klog_level];
+								state = TIME_STAMP_BEGIN;
+							} else {
+								state = INVALID;
+							}
+						}
+					} else { // else, there was nothing in LEVEL brackets
+						state = INVALID;
+					}
+				}
+				break;
+			case TIME_STAMP_BEGIN:
+				if (*look == '[') state = IN_TIME_STAMP; else state = INVALID;
+				break;
+			case IN_TIME_STAMP:
+				if (*look == ']') state = BODY_BEGIN;
+				else {
+					if (!isdigit(*look) && *look != '.' && *look != ' ') {
+						state = INVALID;
+					}
+				}
+				break;
+			case BODY_BEGIN:
+				cap = look + 1;
+				if (*look != '\n') {
+					state = IN_BODY;
+				} else {
+					state = END_LOG;
+				}
+				break;
+			case IN_BODY:
+				if (*look == '\n') {
+					state = END_LOG;
+				}
+		}
+		remain--;
+		look++;
+		moved = look;
+	}
+	if(state == END_LOG) {
+		begin_state = LEVEL_BEGIN; // on the next call, move to next log entry
+		entry->meta.m.tag = GREASE_TAG_KERNEL;
+		entry->meta.m.origin = 0;
+		if((look - cap) > 0) {
+			// actually log stuff with some length
+			if((look - cap - 1) > entry->buf.handle.len) {
+				// its too big... (should probably never happen)
+				// just truncate it
+				::memcpy((void *)entry->buf.handle.base,cap,(int) entry->buf.handle.len);
+				entry->buf.used = (int) entry->buf.handle.len;
+			} else {
+				::memcpy((void *)entry->buf.handle.base,cap,(int) (look-cap-1));
+				entry->buf.used = (int)(look-cap-1);
+			}
+		} else {
+			return false;
+		}
+		// we only return true if this loggable
+		return true;
+	} else {
+		begin_state = state;
+		return false;
+	}
+
+}
+
+
+/**
+ * Messages from the /dev/kmsg are a bit simpler:
+ *
+ * Example:
+ * LEVEL,TIME,TIME2,?;BODY\n
+ * 6,2000,8486026862,-;thinkpad_acpi: EC reports that Thermal Table has changed
+ */
+bool GreaseLogger::parse_single_devklog_to_singleLog(char *start, int &remain, klog_parse_state &begin_state, singleLog *entry, char *&moved) {
+	klog_parse_state state = begin_state;
+	char *look = start;
+	char *cap = NULL;
+	int klog_level;
+
+	while(remain > 0 && state != INVALID && state != END_LOG) {
+		switch(state) {
+			case LEVEL_BEGIN:
+				cap = look;
+				state = IN_LEVEL;
+				break;
+			case IN_LEVEL:
+				if (*look == ',') {
+					*look = '\0';  // make it NULL, so we can capture the string
+
+					if(look == cap + 1 || look == cap + 2) { // there should be only 1 or 2, digit
+						if(*cap == 'c') {
+							// this is a continuation line. Special case.
+							// TODO
+							state = CONT_BODY_BEGIN;
+						} else
+						if(*cap == 'd') {
+							entry->meta.m.level = GREASE_KLOG_DEFAULT_LEVEL;
+							state = TIME_STAMP_BEGIN;
+						} else {
+							if(look == cap + 1)
+								klog_level = *cap - '0';
+							else if (*cap == '1')
+								klog_level = *(cap+1) - '0' + 10;
+							else
+								klog_level = 20;
+
+							if (klog_level < 20 && klog_level >= 0) {
+								// valid level
+								entry->meta.m.level = GREASE_KLOGLEVEL_TO_LEVEL_MAP[klog_level];
+								state = TIME_STAMP_BEGIN;
+							} else {
+								// ?? dunno, something new, move on - use default
+								entry->meta.m.level = GREASE_KLOG_DEFAULT_LEVEL;
+								state = TIME_STAMP_BEGIN;
+							}
+						}
+					} else { // else, there was nothing confusing, skip to body - use default level
+						if (*look == ';') { // in this case,
+							entry->meta.m.level = GREASE_KLOG_DEFAULT_LEVEL;
+							state = BODY_BEGIN;
+						}
+
+//						state = INVALID;
+					}
+				}
+				break;
+			case TIME_STAMP_BEGIN:
+				if(*look == ';') {
+					state = BODY_BEGIN;
+				}
+				break;
+			case BODY_BEGIN:
+				cap = look;
+				if(remain == 1) state = END_LOG;
+				else state = IN_BODY;
+				break;
+			case IN_BODY:
+				if(remain == 1) state = END_LOG;
+				break;
+//				if(remain == 1) {
+//
+//				}
+//				cap = look;
+//				if (*look == '\n') {
+//					state = END_LOG;
+//				}
+//				break;
+		}
+		remain--;
+		look++;
+		moved = look;
+	}
+	if(state == END_LOG) {
+		begin_state = LEVEL_BEGIN; // on the next call, move to next log entry
+		entry->meta.m.tag = GREASE_TAG_KERNEL;
+		entry->meta.m.origin = 0;
+		if((look - cap) > 0) {
+			// actually log stuff with some length
+			if((look - cap - 1) > entry->buf.handle.len) {
+				// its too big... (should probably never happen)
+				// just truncate it
+				::memcpy((void *)entry->buf.handle.base,cap,(int) entry->buf.handle.len);
+				entry->buf.used = (int) entry->buf.handle.len;
+			} else {
+				::memcpy((void *)entry->buf.handle.base,cap,(int) (look-cap-1));
+				entry->buf.used = (int)(look-cap-1);
+			}
+		} else {
+			return false;
+		}
+		// we only return true if this loggable
+		return true;
+	} else {
+		begin_state = state;
+		return false;
+	}
+
+}
+
 int GreaseLogger::_grabInLogBuffer(singleLog* &buf) {
 	if(masterBufferAvail.remove(buf)){
 		return GREASE_OK;

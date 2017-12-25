@@ -250,6 +250,7 @@ int main() {
 	// test setting up a sink
 
 	GreaseLibSink *sink = GreaseLib_new_GreaseLibSink(GREASE_LIB_SINK_UNIXDGRAM,"/tmp/testsocket");
+	GreaseLibSink *klog_sink = GreaseLib_new_GreaseLibSink(GREASE_LIB_SINK_KLOG2,NULL);
 
 	// setup a file destination
 
@@ -297,6 +298,9 @@ int main() {
 
 	if((ret = GreaseLib_addSink(sink)) != GREASE_LIB_OK) {
 		printf("ERROR on addSink(): %d",ret);
+	}
+	if((ret = GreaseLib_addSink(klog_sink)) != GREASE_LIB_OK) {
+		printf("ERROR on addSink() - klog: %d",ret);
 	}
 	printf("after setup sink\n");
 

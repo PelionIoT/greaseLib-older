@@ -61,6 +61,11 @@ popd
 echo "build libuv...."
 
 pushd $LIBUV_DIR
+if [ ! -d "build" ]; then
+    echo "Need build/gyp folder. Will try to decompress..."
+    tar xvfz gyp.tar.gz
+fi
+
 if [[ "$platform" == 'darwin' ]]; then
 	./gyp_uv.py -f xcode
 	xcodebuild -ARCHS="x86_64" -project uv.xcodeproj -configuration Release -target All

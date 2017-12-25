@@ -53,6 +53,10 @@ using namespace v8;
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
+// Linux kernel logs:
+#include <sys/klog.h>
+//#include <sys/syslog.h>
+
 
 #include <TW/tw_alloc.h>
 #include <TW/tw_fifo.h>
@@ -1483,6 +1487,535 @@ protected:
 		}
 	};  // end SyslogDatagramSink
 
+
+//	static constexpr char *re_capture_kernelog = "\\<([0-9])\\>\\[[0-9]+\\.[0-9]+\\]([^\\n]+)";
+//	static constexpr char *re_default_kernlog_path = "/proc/kmsg";
+
+	/* Close the log.  Currently a NOP. */
+	#define KSYSLOG_ACTION_CLOSE          0
+	/* Open the log. Currently a NOP. */
+	#define KSYSLOG_ACTION_OPEN           1
+	/* Read from the log. */
+	#define KSYSLOG_ACTION_READ           2
+	/* Read all messages remaining in the ring buffer. (allowed for non-root) */
+	#define KSYSLOG_ACTION_READ_ALL       3
+	/* Read and clear all messages remaining in the ring buffer */
+	#define KSYSLOG_ACTION_READ_CLEAR     4
+	/* Clear ring buffer. */
+	#define KSYSLOG_ACTION_CLEAR          5
+	/* Disable printk's to console */
+	#define KSYSLOG_ACTION_CONSOLE_OFF    6
+	/* Enable printk's to console */
+	#define KSYSLOG_ACTION_CONSOLE_ON     7
+	/* Set level of messages printed to console */
+	#define KSYSLOG_ACTION_CONSOLE_LEVEL  8
+	/* Return number of unread characters in the log buffer */
+	#define KSYSLOG_ACTION_SIZE_UNREAD    9
+	/* Return size of the log buffer */
+	#define KSYSLOG_ACTION_SIZE_BUFFER   10
+
+	class KernelProcKmsgSink final : public Sink, virtual public heapBuf::heapBufManager  {
+	protected:
+
+		uv_thread_t listener_thread;
+//		char *path;
+
+	public:
+
+		uv_loop_t *loop;
+		GreaseLogger *owner;
+		SinkId id;
+
+		uv_mutex_t control_mutex;
+		bool stop_thread;
+		int kernlog_fd;
+		int kernbufsize;
+		bool valid;
+		int wakeup_pipe[2];
+		static const int PIPE_WAIT = 1;
+		static const int PIPE_WAKEUP = 0;
+//		static const int DESIRED_SOCKET_SIZE = 65536;
+		struct sockaddr_un sink_dgram_addr;
+		bool ready;
+		KernelProcKmsgSink() = delete;
+		KernelProcKmsgSink(GreaseLogger *o, SinkId _id, uv_loop_t *l) :
+//				buffers(BUFFERS_PER_SINK),
+				loop(l), owner(o),  id(_id),
+				stop_thread(false),
+				kernlog_fd(0),
+				kernbufsize(2^14),
+				valid(false),
+				wakeup_pipe(), // {-1,-1}
+				ready(false) {
+//			uv_pipe_init(l,&pipe,0);
+//			pipe.data = this;
+			wakeup_pipe[0] = -1; wakeup_pipe[1] = -1;
+//			if(_path && strlen(_path) > 0) {
+//				path = local_strdup_safe(_path);
+//			}
+//			else
+//				DBG_OUT("KernelProcKmsgSink: No path set. Will fail.\n");
+//			for (int n=0;n<BUFFERS_PER_SINK;n++) {
+//				heapBuf *b = new heapBuf(SINK_BUFFER_SIZE);
+////				buffers.add(b);
+//			}
+		}
+		void returnBuffer(heapBuf *b) {
+//			buffers.add(b);
+		}
+		bool bind() {
+			kernbufsize = ::klogctl(KSYSLOG_ACTION_SIZE_BUFFER, NULL, 0);
+			if(kernbufsize > 0) {
+				valid = true;
+			}
+			if(pipe(wakeup_pipe) < 0) {
+				ERROR_PERROR("KernelProcKmsgSink: Failed to create wakeup pipe().\n", errno);
+			} else {
+				fcntl(wakeup_pipe[PIPE_WAIT], F_SETFL, O_NONBLOCK);
+			}
+
+			return ready;
+		}
+
+#define SINK_KLOG_TV_USEC_START 250000
+
+		static void listener_work(void *self) {
+			KernelProcKmsgSink *sink = (KernelProcKmsgSink *) self;
+
+			fd_set readfds;
+
+			char dump[5];
+
+			struct timeval timeout;
+			timeout.tv_sec = 0;
+			timeout.tv_usec = SINK_KLOG_TV_USEC_START; // 0.25 seconds
+			int buf_size = sink->kernbufsize*2;
+
+			if(!sink->valid) {
+				ERROR_OUT("KernelProcKmsgSink: NOT VALID. Can't start thread.");
+				return;
+			}
+
+			char *temp_buffer_entry = (char *) malloc(buf_size);
+			int buf_remain = buf_size;
+			GreaseLogger::klog_parse_state parse_state = LEVEL_BEGIN;
+			char *buf_curpos = temp_buffer_entry;
+			FD_ZERO(&readfds);
+			FD_SET(sink->wakeup_pipe[PIPE_WAIT], &readfds);
+//			FD_SET(sink->socket_fd, &readfds);
+			DECL_LOG_META(meta_klog, GREASE_TAG_KERNEL, GREASE_LEVEL_LOG, 0 ); // static meta struct we will use
+			int Z = 0;
+			int reads = 0;
+
+			GreaseLogger *l = GreaseLogger::setupClass();
+			GreaseLogger::singleLog *entry = NULL;
+
+
+			//			int err = select(n,&readfds,NULL,NULL,NULL); // block and wait...
+			while(1) {
+				Z++;
+				DBG_OUT("TOp - KLOG %d",Z);
+				int err = select(sink->wakeup_pipe[PIPE_WAIT] + 1, &readfds, NULL, NULL, &timeout);
+				if(err == -1) {
+					ERROR_PERROR("select() error",errno);
+				} else if(err == 0) {
+					DBG_OUT("TOp - timeout - KLOG");
+					bool again = true;
+					reads = 0;
+					while(again) {
+
+						int readn = klogctl(KSYSLOG_ACTION_SIZE_UNREAD,temp_buffer_entry,buf_size);
+						if (readn > 0) {
+							readn = klogctl(KSYSLOG_ACTION_READ, temp_buffer_entry, buf_size-1);
+							temp_buffer_entry[readn] = 0; // make last char NULL - for debug
+							DBG_OUT("READ Klog: %s",temp_buffer_entry);
+							buf_remain = buf_size -1;
+							buf_curpos = temp_buffer_entry;
+							parse_state = LEVEL_BEGIN;
+							while(1) {
+
+								if(l->_grabInLogBuffer(entry) == GREASE_OK) {
+
+									if(GreaseLogger::parse_single_klog_to_singleLog(buf_curpos, buf_remain, parse_state, entry, buf_curpos)) {
+										DBG_OUT("PARSED Klog: %s",buf_curpos);
+										entry->incRef();
+										l->_submitBuffer(entry);
+									} else {
+										if(parse_state == INVALID) {
+											DBG_OUT("INVALID Klog: %s",buf_curpos);
+											l->_returnBuffer(entry);
+											break;
+										} else {
+											DBG_OUT("INCOMPLETE Klog: %s",buf_curpos);
+											// TODO: fixme to continue this buffer
+											l->_returnBuffer(entry);
+											break;
+										}
+									}
+
+								} else {
+									ERROR_OUT("Failed to get buffer: _greaseLib_handle_stdoutFd_cb");
+									break;
+								}
+
+							}
+							reads++;
+						} else {
+							again = false;
+						}
+					}
+					if(reads == 0) {
+						timeout.tv_usec = SINK_KLOG_TV_USEC_START * 4;
+					} else
+					if(reads == 1) {
+						timeout.tv_usec = SINK_KLOG_TV_USEC_START * 2;
+					} else {
+						timeout.tv_usec = SINK_KLOG_TV_USEC_START;
+					}
+					// timeout
+				} else {
+					DBG_OUT("TOp - LOG - PIPE");
+					if(FD_ISSET(sink->wakeup_pipe[PIPE_WAIT], &readfds)) {
+						while(read(sink->wakeup_pipe[PIPE_WAIT], dump, 1) == 1) {}
+					}
+				}
+				uv_mutex_lock(&sink->control_mutex);
+				if(sink->stop_thread) {
+					uv_mutex_unlock(&sink->control_mutex);
+					break;
+				} else {
+					uv_mutex_unlock(&sink->control_mutex);
+				}
+			}
+
+			free(temp_buffer_entry);
+		}
+
+		void start() {
+			uv_thread_create(&listener_thread,KernelProcKmsgSink::listener_work,(void *) this);
+		}
+
+		void stop() {
+			uv_mutex_lock(&control_mutex);
+			stop_thread = true;
+			uv_mutex_unlock(&control_mutex);
+			wakeup_thread();
+		}
+
+
+		~KernelProcKmsgSink() {
+			if(wakeup_pipe[0] < 0)
+				close(wakeup_pipe[0]);
+			if(wakeup_pipe[1] < 0)
+				close(wakeup_pipe[1]);
+		}
+
+	protected:
+		void wakeup_thread() {
+			if(wakeup_pipe[PIPE_WAKEUP] > -1) {
+				write(wakeup_pipe[PIPE_WAKEUP], "x", 1);
+			}
+		}
+	};  // end Klog class
+
+
+
+	/**
+	 * In modern kernels, after 3.5, you can read the kernel log directly from
+	 * /dev/kmsg, which allows use to use select and not the lousy, polling on a timer.
+	 *
+	 * https://stackoverflow.com/questions/32615442/kernel-log-file-descriptor-for-use-with-select
+	 * Refer to the above, and the newer dmesg source.
+	 * https://github.com/karelzak/util-linux/blob/master/sys-utils/dmesg.c
+	 */
+	class KernelProcKmsg2Sink final : public Sink, virtual public heapBuf::heapBufManager  {
+	protected:
+		static constexpr char *KERNLOG_PATH = "/dev/kmsg";
+		uv_thread_t listener_thread;
+//		char *path;
+
+	public:
+
+		uv_loop_t *loop;
+		GreaseLogger *owner;
+		SinkId id;
+
+		uv_mutex_t control_mutex;
+		bool stop_thread;
+		int kernlog_fd;
+		int kernbufsize;
+		bool valid;
+		int wakeup_pipe[2];
+		static const int PIPE_WAIT = 1;
+		static const int PIPE_WAKEUP = 0;
+//		static const int DESIRED_SOCKET_SIZE = 65536;
+		struct sockaddr_un sink_dgram_addr;
+		bool ready;
+		KernelProcKmsg2Sink() = delete;
+		KernelProcKmsg2Sink(GreaseLogger *o, SinkId _id, uv_loop_t *l) :
+//				buffers(BUFFERS_PER_SINK),
+				loop(l), owner(o),  id(_id),
+				stop_thread(false),
+				kernlog_fd(0),
+				kernbufsize(2^14),
+				valid(false),
+				wakeup_pipe(), // {-1,-1}
+				ready(false) {
+//			uv_pipe_init(l,&pipe,0);
+//			pipe.data = this;
+			wakeup_pipe[0] = -1; wakeup_pipe[1] = -1;
+//			if(_path && strlen(_path) > 0) {
+//				path = local_strdup_safe(_path);
+//			}
+//			else
+//				DBG_OUT("KernelProcKmsgSink: No path set. Will fail.\n");
+//			for (int n=0;n<BUFFERS_PER_SINK;n++) {
+//				heapBuf *b = new heapBuf(SINK_BUFFER_SIZE);
+////				buffers.add(b);
+//			}
+		}
+		void returnBuffer(heapBuf *b) {
+//			buffers.add(b);
+		}
+		bool bind() {
+			kernbufsize = ::klogctl(KSYSLOG_ACTION_SIZE_BUFFER, NULL, 0);
+			if(kernbufsize > 0) {
+				valid = true;
+			}
+			if(pipe(wakeup_pipe) < 0) {
+				ERROR_PERROR("KernelProcKmsgSink: Failed to create wakeup pipe().\n", errno);
+			} else {
+				fcntl(wakeup_pipe[PIPE_WAIT], F_SETFL, O_NONBLOCK);
+			}
+
+			return ready;
+		}
+
+#define SINK_KLOG_TV_USEC_START 250000
+
+		static int open_kmsg(const char *path, int &_errno) {
+			int mode = O_RDONLY | O_NONBLOCK;
+			int fd = open(path, mode);
+			if (fd < 0) {
+				_errno = errno;
+				return -1;
+			} else {
+				lseek(fd, 0, SEEK_END); // get last message
+				return fd;
+			}
+		}
+
+		static void listener_work(void *self) {
+			KernelProcKmsgSink *sink = (KernelProcKmsgSink *) self;
+
+			fd_set readfds;
+
+			char dump[5];
+
+//			struct timeval timeout;
+//			timeout.tv_sec = 0;
+//			timeout.tv_usec = SINK_KLOG_TV_USEC_START; // 0.25 seconds
+			int buf_size = sink->kernbufsize;
+
+			if(!sink->valid) {
+				ERROR_OUT("KernelProcKmsg2Sink: NOT VALID. Can't start thread.");
+				return;
+			}
+
+
+
+			char *temp_buffer_entry = (char *) malloc(buf_size);
+			int remaining_to_parse = buf_size;
+			GreaseLogger::klog_parse_state parse_state = LEVEL_BEGIN;
+			char *buf_curpos = temp_buffer_entry;
+			FD_ZERO(&readfds);
+			FD_SET(sink->wakeup_pipe[PIPE_WAIT], &readfds);
+			int _errno = 0;
+			int kmsg_fd = open_kmsg(KERNLOG_PATH, _errno);
+			if(kmsg_fd > 0) {
+				FD_SET(kmsg_fd,&readfds);
+			} else {
+				ERROR_OUT("KernelProcKmsg2Sink: FATAL for thread. Can't open %s\n",KERNLOG_PATH);
+				close(sink->wakeup_pipe[0]);
+				close(sink->wakeup_pipe[1]);
+				sink->ready = false;
+				sink->valid = false;
+				return;
+			}
+
+			int last_fd = kmsg_fd + 1;
+			if(sink->wakeup_pipe[PIPE_WAIT] > last_fd)
+				last_fd = sink->wakeup_pipe[PIPE_WAIT]+1;
+
+			//			FD_SET(sink->socket_fd, &readfds);
+			DECL_LOG_META(meta_klog, GREASE_TAG_KERNEL, GREASE_LEVEL_LOG, 0 ); // static meta struct we will use
+			int Z = 0;
+			int reads = 0;
+
+			GreaseLogger *l = GreaseLogger::setupClass();
+			GreaseLogger::singleLog *entry = NULL;
+
+			char *read_into = temp_buffer_entry;
+			int buffer_remain = buf_size;
+			//			int err = select(n,&readfds,NULL,NULL,NULL); // block and wait...
+			while(1) {
+				Z++;
+				DBG_OUT("TOp - KLOG %d",Z);
+				lseek(kmsg_fd, 0, SEEK_END); // get last message
+				int err = select(last_fd, &readfds, NULL, NULL, NULL);
+				DBG_OUT("INNER KLOG 1 -- %d",Z);
+				if(err == -1) {
+					ERROR_PERROR("select() error",errno);
+				} else {
+					if(FD_ISSET(kmsg_fd, &readfds)) {
+						DBG_OUT("INNER KLOG 1.1 %d",Z);
+						// ok - the kmsg is readable. Do it.
+						if( parse_state != LEVEL_BEGIN ||  // if _not_ LEVEL_BEGIN, then we have  fragment
+							l->_grabInLogBuffer(entry) == GREASE_OK) {
+							DBG_OUT("INNER KLOG 2 %d",Z);
+							int readn = ::read(kmsg_fd,read_into,(int) buf_size - (read_into - temp_buffer_entry));
+							remaining_to_parse = buffer_remain;
+							if (readn > 0) {
+
+								read_into[readn] = 0;
+								DBG_OUT("KLOG Got read %s",read_into);
+								if(GreaseLogger::parse_single_devklog_to_singleLog(read_into, readn, parse_state, entry, buf_curpos)) {
+									DBG_OUT("PARSED Klog: %s",buf_curpos);
+									entry->incRef();
+									l->_submitBuffer(entry);
+									read_into = temp_buffer_entry;
+									buffer_remain = buf_size;
+									entry = NULL;
+								} else {
+									if(parse_state == INVALID) {
+										DBG_OUT("INVALID Klog: %s",buf_curpos);
+										l->_returnBuffer(entry);
+										read_into = temp_buffer_entry;
+										buffer_remain = buf_size;
+										parse_state = LEVEL_BEGIN;
+										entry = NULL;
+										break;
+									} else {
+										DBG_OUT("INCOMPLETE Klog: %s",buf_curpos);
+										read_into = buf_curpos;
+//										l->_returnBuffer(entry);
+										break;
+									}
+								}
+							} else {
+								l->_returnBuffer(entry);
+								entry = NULL;
+							}
+
+						} else {
+							ERROR_OUT("KernelProcKmsg2Sink: Failed to get buffer: _greaseLib_handle_stdoutFd_cb");
+							break;
+						}
+					}
+					if(FD_ISSET(sink->wakeup_pipe[PIPE_WAIT], &readfds)) {
+						while(read(sink->wakeup_pipe[PIPE_WAIT], dump, 1) == 1) {}
+					}
+				}
+				uv_mutex_lock(&sink->control_mutex);
+				if(sink->stop_thread) {
+					uv_mutex_unlock(&sink->control_mutex);
+					if(entry) l->_returnBuffer(entry);
+					break;
+				} else {
+					uv_mutex_unlock(&sink->control_mutex);
+				}
+			}
+//					DBG_OUT("TOp - timeout - KLOG");
+//					bool again = true;
+//					reads = 0;
+//					while(again) {
+//
+//						int readn = klogctl(KSYSLOG_ACTION_SIZE_UNREAD,temp_buffer_entry,buf_size);
+//						if (readn > 0) {
+//							readn = klogctl(KSYSLOG_ACTION_READ, temp_buffer_entry, buf_size-1);
+//							temp_buffer_entry[readn] = 0; // make last char NULL - for debug
+//							DBG_OUT("READ Klog: %s",temp_buffer_entry);
+//							buf_remain = buf_size -1;
+//							buf_curpos = temp_buffer_entry;
+//							parse_state = LEVEL_BEGIN;
+//							while(1) {
+//
+//								if(l->_grabInLogBuffer(entry) == GREASE_OK) {
+//
+//									if(GreaseLogger::parse_single_klog_to_singleLog(buf_curpos, buf_remain, parse_state, entry, buf_curpos)) {
+//										DBG_OUT("PARSED Klog: %s",buf_curpos);
+//										entry->incRef();
+//										l->_submitBuffer(entry);
+//									} else {
+//										if(parse_state == INVALID) {
+//											DBG_OUT("INVALID Klog: %s",buf_curpos);
+//											l->_returnBuffer(entry);
+//											break;
+//										} else {
+//											DBG_OUT("INCOMPLETE Klog: %s",buf_curpos);
+//											// TODO: fixme to continue this buffer
+//											l->_returnBuffer(entry);
+//											break;
+//										}
+//									}
+//
+//								} else {
+//									ERROR_OUT("KernelProcKmsg2Sink:Failed to get buffer: _greaseLib_handle_stdoutFd_cb");
+//									break;
+//								}
+//
+//							}
+//							reads++;
+//						} else {
+//							again = false;
+//						}
+//					}
+//					if(reads == 0) {
+//						timeout.tv_usec = SINK_KLOG_TV_USEC_START * 4;
+//					} else
+//					if(reads == 1) {
+//						timeout.tv_usec = SINK_KLOG_TV_USEC_START * 2;
+//					} else {
+//						timeout.tv_usec = SINK_KLOG_TV_USEC_START;
+//					}
+//					// timeout
+//				} else {
+//					DBG_OUT("TOp - LOG - PIPE");
+//					if(FD_ISSET(sink->wakeup_pipe[PIPE_WAIT], &readfds)) {
+//						while(read(sink->wakeup_pipe[PIPE_WAIT], dump, 1) == 1) {}
+//					}
+//				}
+//			}
+
+			free(temp_buffer_entry);
+		}
+
+		void start() {
+			uv_thread_create(&listener_thread,KernelProcKmsg2Sink::listener_work,(void *) this);
+		}
+
+		void stop() {
+			uv_mutex_lock(&control_mutex);
+			stop_thread = true;
+			uv_mutex_unlock(&control_mutex);
+			wakeup_thread();
+		}
+
+
+		~KernelProcKmsg2Sink() {
+			if(wakeup_pipe[0] < 0)
+				close(wakeup_pipe[0]);
+			if(wakeup_pipe[1] < 0)
+				close(wakeup_pipe[1]);
+		}
+
+	protected:
+		void wakeup_thread() {
+			if(wakeup_pipe[PIPE_WAKEUP] > -1) {
+				write(wakeup_pipe[PIPE_WAKEUP], "x", 1);
+			}
+		}
+	};  // end Klog class
 
 
 
@@ -3603,6 +4136,26 @@ protected:
 	int logFromRaw(char *base, int len);
 
 
+// used for parsing kernel logs
+
+	enum klog_parse_state {
+		LEVEL_BEGIN,  // <
+		IN_LEVEL,     // 0-0
+//			LEVEL_END,    // >
+		TIME_STAMP_BEGIN,   // [
+		IN_TIME_STAMP,      // 0-9, .  // not captured
+//			TIME_STAMP_END,     // ]
+		BODY_BEGIN,         // white space
+		IN_BODY,            // anything but newlines
+		BODY_END,            // \n
+		CONT_BODY_BEGIN,     // continuation body.. white space
+		IN_CONT_BODY,        // anything but newlines
+		CONT_BODY_END,       // \n
+		INVALID,             // bad parse - in whcih case we will just put the whole thing in the logger
+		END_LOG              //
+	};
+	static bool parse_single_klog_to_singleLog(char *start, int &remain, klog_parse_state &begin_state, singleLog *entry, char *&moved);
+	static bool parse_single_devklog_to_singleLog(char *start, int &remain, klog_parse_state &begin_state, singleLog *entry, char *&moved);
 
 public:
 	int log(const logMeta &f, const char *s, int len); // does the work of logging (for users in C++)

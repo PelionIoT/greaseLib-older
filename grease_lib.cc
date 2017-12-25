@@ -120,6 +120,8 @@ uv_mutex_t tagGenLock;
 GreaseLibProcessClosedRedirect defaultRedirectorClosedCB = NULL;
 
 class fdRedirectorTicket final {
+protected:
+	bool _isValid;
 public:
 	uint32_t origin;
 	uint32_t tag;
@@ -129,9 +131,14 @@ public:
 	uv_poll_t handle;
 	GreaseLibProcessClosedRedirect cb;
 	fdRedirectorTicket() = delete;
-	fdRedirectorTicket(uint32_t o, int _fd, GreaseLibProcessClosedRedirect _cb): origin(o), tag(0), level(0), fd(_fd), closed(false), cb(_cb) {
-		uv_poll_init(&libLoop, &handle, fd); // NOTE: this should set the descriptor to non-blocking mode
+	fdRedirectorTicket(uint32_t o, int _fd, GreaseLibProcessClosedRedirect _cb): _isValid(false), origin(o), tag(0), level(0), fd(_fd), closed(false), cb(_cb) {
+		if(!ww_alt_uv_poll_init(&libLoop, &handle, fd)) {  // NOTE: this should set the descriptor to non-blocking mode
+			_isValid = true;
+		}
 		handle.data = this;
+	}
+	bool isValid() {
+		return _isValid;
 	}
 	void close() {
 		if(!closed) {
@@ -482,6 +489,7 @@ const TagId GREASE_RESERVED_TAGS_NATIVE = GREASE_NATIVE_TAG;
 const char *GREASE_STD_LABEL_SYSLOG = "syslog";
 const char *GREASE_STD_LABEL_STDOUT = "stdout";
 const char *GREASE_STD_LABEL_STDERR = "stderr";
+const char *GREASE_STD_LABEL_KERNEL = "kernel";
 // these pair with syslog.h common 'facilities'
 const char *GREASE_STD_LABEL_SYS_AUTH = "sys-auth";
 const char *GREASE_STD_LABEL_SYS_AUTHPRIV = "sys-authpriv";
@@ -505,6 +513,7 @@ const char *GREASE_STD_LABEL_SYS_LOCAL4 = "sys-local4";
 const char *GREASE_STD_LABEL_SYS_LOCAL5 = "sys-local5";
 const char *GREASE_STD_LABEL_SYS_LOCAL6 = "sys-local6";
 const char *GREASE_STD_LABEL_SYS_LOCAL7 = "sys-local7";
+
 
 const char *GREASE_STD_LABEL_GREASE_ECHO = "grease-echo";
 
@@ -555,6 +564,7 @@ LIB_METHOD_SYNC(setupStandardTags) {
 	GreaseLib_addTagLabel(GREASE_TAG_SYSLOG,GREASE_STD_LABEL_SYSLOG,strlen(GREASE_STD_LABEL_SYSLOG));
 	GreaseLib_addTagLabel(GREASE_TAG_STDOUT,GREASE_STD_LABEL_STDOUT,strlen(GREASE_STD_LABEL_STDOUT));
 	GreaseLib_addTagLabel(GREASE_TAG_STDERR,GREASE_STD_LABEL_STDERR,strlen(GREASE_STD_LABEL_STDERR));
+	GreaseLib_addTagLabel(GREASE_TAG_KERNEL,GREASE_STD_LABEL_KERNEL,strlen(GREASE_STD_LABEL_KERNEL));
 	GreaseLib_addTagLabel(GREASE_RESERVED_TAGS_ECHO,GREASE_STD_LABEL_GREASE_ECHO,strlen(GREASE_STD_LABEL_GREASE_ECHO));
 	// stuff to log syslog stuff sensibly
 	GREASE_ADD_RES_TAG_N_LABEL( SYS_AUTH );
@@ -1053,14 +1063,18 @@ GreaseLibSink *GreaseLib_new_GreaseLibSink(uint32_t sink_type, const char *path)
 	GreaseLibSink *ret = (GreaseLibSink *) ::malloc(sizeof(GreaseLibSink));
 	::memset(ret,0,sizeof(GreaseLibSink));
 	ret->sink_type = sink_type;
-	::strncpy(ret->path,path,GREASE_PATH_MAX);
+	if(path) {
+		::strncpy(ret->path,path,GREASE_PATH_MAX);
+	}
 	return ret;
 }
 
 GreaseLibSink *GreaseLib_init_GreaseLibSink(GreaseLibSink *ret, uint32_t sink_type, const char *path) {
 	::memset(ret,0,sizeof(GreaseLibSink));
 	ret->sink_type = sink_type;
-	::strncpy(ret->path,path,GREASE_PATH_MAX);
+	if(path) {
+		::strncpy(ret->path,path,GREASE_PATH_MAX);
+	}
 	return ret;
 }
 
@@ -1109,7 +1123,33 @@ LIB_METHOD_SYNC(addSink,GreaseLibSink *sink) {
 		newsink->start();
 
 		l->sinks.addReplace(sink->id,base);
-	} else {
+	} else if (sink->sink_type == GREASE_LIB_SINK_KLOG) {
+		uv_mutex_lock(&l->nextIdMutex);
+		sink->id = l->nextSinkId++;
+		uv_mutex_unlock(&l->nextIdMutex);
+
+		GreaseLogger::KernelProcKmsgSink *newsink = new GreaseLogger::KernelProcKmsgSink(l, sink->id, l->loggerLoop);
+		GreaseLogger::Sink *base = dynamic_cast<GreaseLogger::Sink *>(newsink);
+
+		newsink->bind();
+		newsink->start();
+
+		l->sinks.addReplace(sink->id,base);
+	} else if (sink->sink_type == GREASE_LIB_SINK_KLOG2) {
+		uv_mutex_lock(&l->nextIdMutex);
+		sink->id = l->nextSinkId++;
+		uv_mutex_unlock(&l->nextIdMutex);
+
+		GreaseLogger::KernelProcKmsg2Sink *newsink = new GreaseLogger::KernelProcKmsg2Sink(l, sink->id, l->loggerLoop);
+		GreaseLogger::Sink *base = dynamic_cast<GreaseLogger::Sink *>(newsink);
+
+		newsink->bind();
+		newsink->start();
+
+		l->sinks.addReplace(sink->id,base);
+	}
+
+	else {
 		return GREASE_INVALID_PARAMS;
 	}
 	return GREASE_LIB_OK;
@@ -1243,12 +1283,18 @@ LIB_METHOD_SYNC(flush, TargetId id) {
 LIB_METHOD_SYNC(addFDForStdout,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb) {
 	fdRedirectorTicket *data = new fdRedirectorTicket(originId, fd, cb);
 	fdRedirectorTicket *old = NULL;
-	stdoutRedirectTable->addReplace(fd,data,old);
-	if(old) {
-		delete old;
+	if(!data->isValid()){
+		ERROR_OUT("addFDForStdout() --> redirector ticket is not valid!!");
+		delete data;
+		return GREASE_LIB_INTERNAL_ERROR;
+	} else {
+		stdoutRedirectTable->addReplace(fd,data,old);
+		if(old) {
+			delete old;
+		}
+		data->startPoll(_greaseLib_handle_stdoutFd_cb);
+		return GREASE_LIB_OK;
 	}
-	data->startPoll(_greaseLib_handle_stdoutFd_cb);
-	return GREASE_LIB_OK;
 }
 
 LIB_METHOD_SYNC(addDefaultRedirectorClosedCB, GreaseLibProcessClosedRedirect cb) {
@@ -1263,14 +1309,18 @@ LIB_METHOD_SYNC(addDefaultRedirectorClosedCB, GreaseLibProcessClosedRedirect cb)
 LIB_METHOD_SYNC(addFDForStderr,int fd, uint32_t originId, GreaseLibProcessClosedRedirect cb) {
 	fdRedirectorTicket *data = new fdRedirectorTicket(originId, fd, cb);
 	fdRedirectorTicket *old = NULL;
-	stderrRedirectTable->addReplace(fd,data,old);
-	if(old) {
-		// we don't close it b/c its the same number as the incoming
-		// this should never happen
-		delete old;
+	if(!data->isValid()){
+		ERROR_OUT("addFDForStderr() --> redirector ticket is not valid!!");
+		delete data;
+		return GREASE_LIB_INTERNAL_ERROR;
+	} else {
+		stderrRedirectTable->addReplace(fd,data,old);
+		if(old) {
+			delete old;
+		}
+		data->startPoll(_greaseLib_handle_stderrFd_cb);
+		return GREASE_LIB_OK;
 	}
-	data->startPoll(_greaseLib_handle_stderrFd_cb);
-	return GREASE_LIB_OK;
 }
 
 LIB_METHOD_SYNC(removeFDForStdout,int fd) {
