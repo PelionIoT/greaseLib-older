@@ -721,6 +721,7 @@ enum uv_poll_event {
   UV_DISCONNECT = 4
 };
 
+UV_EXTERN int ww_alt_uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd);
 UV_EXTERN int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd);
 UV_EXTERN int uv_poll_init_socket(uv_loop_t* loop,
                                   uv_poll_t* handle,
