@@ -30,10 +30,10 @@ using namespace v8;
 // #include <linux/if_tun.h>
 #ifndef __APPLE__
 #include <linux/fs.h>
-#else
-#include <sys/types.h>  // for OS X writev()
-#include <sys/uio.h>
 #endif
+// ok in both Linux and OS X:
+#include <sys/types.h>  // for OS X writev()
+#include <sys/uio.h>    // Linux writev()
 
 #include <syslog.h>  // for LOG_FAC and LOG_PRI macros
 
@@ -3642,7 +3642,7 @@ protected:
 			submittedWrites++;
 			uv_rwlock_wrunlock(&wrLock);
 
-			int got = writev(fileHandle, iov, b->N);
+			int got = ::writev(fileHandle, iov, b->N);
 
 			if(got < 0) {
 				ERROR_PERROR("file: write_overflow_cb() ", errno);
