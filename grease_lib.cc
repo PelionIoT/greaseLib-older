@@ -960,12 +960,12 @@ LIB_METHOD_SYNC(unmaskOutByLevel, uint32_t val) {
 GreaseLibFilter *GreaseLib_new_GreaseLibFilter() {
 	GreaseLibFilter *ret = (GreaseLibFilter *) ::malloc(sizeof(GreaseLibFilter));
 	::memset(ret,0,sizeof(GreaseLibFilter));
-	ret->mask = GREASE_ALL_LEVELS;
+//	ret->mask = GREASE_ALL_LEVELS;
 	return ret;
 }
 GreaseLibFilter *GreaseLib_init_GreaseLibFilter(GreaseLibFilter *ret) {
 	::memset(ret,0,sizeof(GreaseLibFilter));
-	ret->mask = GREASE_ALL_LEVELS;
+//	ret->mask = GREASE_ALL_LEVELS;
 	return ret;
 }
 
