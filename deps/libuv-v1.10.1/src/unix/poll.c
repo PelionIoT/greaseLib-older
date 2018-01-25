@@ -76,6 +76,30 @@ int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
   return 0;
 }
 
+// alternate WigWag version just does the alternate call to uv__io_check_fd()
+int ww_alt_uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
+  int err;
+
+  err = ww_alt_uv__io_check_fd(loop, fd);
+  if (err)
+    return err;
+
+  /* If ioctl(FIONBIO) reports ENOTTY, try fcntl(F_GETFL) + fcntl(F_SETFL).
+   * Workaround for e.g. kqueue fds not supporting ioctls.
+   */
+  err = uv__nonblock(fd, 1);
+  if (err == -ENOTTY)
+    if (uv__nonblock == uv__nonblock_ioctl)
+      err = uv__nonblock_fcntl(fd, 1);
+
+  if (err)
+    return err;
+
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_POLL);
+  uv__io_init(&handle->io_watcher, uv__poll_io, fd);
+  handle->poll_cb = NULL;
+  return 0;
+}
 
 int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
     uv_os_sock_t socket) {
