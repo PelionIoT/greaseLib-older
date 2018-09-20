@@ -10,3 +10,9 @@ Features:
 - Support for custom log routing (`logMeta`)
 - Support for a fast, Unix socket log sink using UNIX datagram
 - Support for std syslog socket
+
+Documentation:
+
+The source. Perhaps we will have time to add some eventually.
+
+But see `standalone_test_logsink.c` to get started.
